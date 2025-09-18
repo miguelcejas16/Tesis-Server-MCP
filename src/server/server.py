@@ -8,13 +8,13 @@ import asyncpg
 import os
 import sys
 from dotenv import load_dotenv
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 # Agregar src al path para importaciones absolutas
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from utils import buscar_afiliado_por_dni
-from bd.baseModels import Afiliado
+from utils import buscar_afiliado_por_dni, buscar_practica_por_nombre,get_practicas_cubiertas
+from bd.baseModels import Afiliado, Practica
 
 # Cargar variables de entorno
 load_dotenv()
@@ -71,7 +71,7 @@ async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], tipo_doc: st
         tipo_doc (str): Tipo de documento (DNI, PASAPORTE, etc.)
         nro_doc (str): Número de documento
     Returns:
-        Optional[Afiliado]: Objeto Afiliado o None si no existe
+        Datos del afiliado, incluyendo su plan_id
     """
     try:
         db = ctx.request_context.lifespan_context.db
@@ -79,6 +79,40 @@ async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], tipo_doc: st
         return resultado
     except Exception as e:
         raise Exception(f"Error al buscar afiliado: {str(e)}")
+
+@mcp.tool()
+async def practica_por_nombre(ctx: Context[ServerSession, AppContext], nombre: str) -> List[Practica]:
+    """
+    Busca una práctica médica por nombre
+    Args:
+        ctx: Contexto del servidor con sesión y aplicación
+        nombre (str): Nombre o parte del nombre de la práctica
+    Returns:
+        Optional[dict]: Diccionario con datos de la práctica o None si no existe
+    """
+    try:
+        db = ctx.request_context.lifespan_context.db
+        resultado = await buscar_practica_por_nombre(db.conn, nombre)
+        return resultado
+    except Exception as e:
+        raise Exception(f"Error al buscar práctica: {str(e)}")
+
+@mcp.tool()
+async def practicas_cubiertas(ctx: Context[ServerSession, AppContext], plan_id: int) -> List[Practica]:
+    """
+    Obtiene las prácticas médicas cubiertas por un plan
+    Args:
+        ctx: Contexto del servidor con sesión y aplicación
+        plan_id (int): ID del plan
+    Returns:
+        Optional[List[Practica]]: Lista de objetos Practica o None si no hay coberturas
+    """
+    try:
+        db = ctx.request_context.lifespan_context.db
+        resultado = await get_practicas_cubiertas(db.conn, plan_id)
+        return resultado
+    except Exception as e:
+        raise Exception(f"Error al obtener prácticas cubiertas: {str(e)}")
 
 if __name__ == "__main__":
     # Initialize and run the server

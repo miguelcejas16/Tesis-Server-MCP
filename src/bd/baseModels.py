@@ -16,3 +16,13 @@ class Afiliado(BaseModel):
     
     class Config:
         from_attributes = True  # Para poder crear desde dict/row
+
+class Practica(BaseModel):
+    """Modelo para representar una práctica médica"""
+    practica_id: int
+    codigo: str
+    nombre: str
+    requiere_autorizacion: int  # 0 o 1
+    
+    class Config:
+        from_attributes = True  # Para poder crear desde dict/row
