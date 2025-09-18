@@ -3,7 +3,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from bd.baseModels import Afiliado, Practica
-from typing import Optional
+from typing import Optional, List
 
 # buscar afiliado por dni
 async def buscar_afiliado_por_dni(connection, tipo_doc: str, nro_doc: str) -> Optional[Afiliado]:
@@ -23,8 +23,8 @@ async def buscar_afiliado_por_dni(connection, tipo_doc: str, nro_doc: str) -> Op
             return None
     except Exception as e:
         raise Exception(f"Error en utils.buscar_afiliado_por_dni: {e}")
-
-async def buscar_practica_por_nombre(connection, nombre: str) -> Optional[Practica]:
+    
+async def buscar_practica_por_nombre(connection, nombre: str) -> Optional[List[Practica]]:
     try:
         query = """
             SELECT practica_id, codigo, nombre, requiere_autorizacion
