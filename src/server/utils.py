@@ -2,7 +2,6 @@
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from bd.connection import get_connection
 from bd.baseModels import Afiliado
 from typing import Optional
 
@@ -27,8 +26,9 @@ async def buscar_afiliado_por_dni(connection, tipo_doc: str, nro_doc: str) -> Op
         result = await connection.fetchrow(query, tipo_doc, nro_doc)
         
         if result:
-            return Afiliado(**dict(result))
-        return None
+            afiliado = Afiliado(**dict(result))
+            return afiliado
+        else:
+            return None
     except Exception as e:
-        print(f"Error al buscar afiliado: {e}")
-        return None
+        raise Exception(f"Error en utils.buscar_afiliado_por_dni: {e}")
