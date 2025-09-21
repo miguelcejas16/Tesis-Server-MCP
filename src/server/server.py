@@ -7,17 +7,19 @@ from contextlib import asynccontextmanager
 import asyncpg
 import os
 import sys
+import logging
 from dotenv import load_dotenv
 from typing import Optional, Any, List
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Agregar src al path para importaciones absolutas
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from utils import buscar_afiliado_por_dni, buscar_practica_por_nombre,get_practicas_cubiertas
 from bd.baseModels import Afiliado, Practica
-
-# Cargar variables de entorno
-load_dotenv()
 
 # Cargar variables de entorno
 load_dotenv()
@@ -29,6 +31,10 @@ class Database:
     @classmethod
     async def connect(cls) -> "Database":
         try:
+            logger.info(f"Intentando conectar a: {os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}")
+            logger.info(f"Base de datos: {os.getenv('DB_NAME')}")
+            logger.info(f"Usuario: {os.getenv('DB_USER')}")
+            
             conn = await asyncpg.connect(
                 user=os.getenv('DB_USER'),
                 password=os.getenv('DB_PASSWORD'),
@@ -36,8 +42,10 @@ class Database:
                 host=os.getenv('DB_HOST', 'localhost'),
                 port=int(os.getenv('DB_PORT', '5432')),
             )
+            logger.info("Conexión exitosa!")
             return cls(conn)
         except Exception as e:
+            logger.error(f"Error específico: {e}")
             raise Exception(f"Error conectando a la base de datos: {e}")
     
     async def disconnect(self) -> None:
