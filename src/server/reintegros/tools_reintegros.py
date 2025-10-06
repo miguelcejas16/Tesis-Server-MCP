@@ -125,23 +125,31 @@ def register_reintegro_tools(mcp: FastMCP):
             raise Exception(f"Error al finalizar el reintegro: {str(e)}")
 
     @mcp.tool(name="mcp_obra_social_adjuntar_documentos_a_reintegro")
-    async def adjuntar_documentos_a_reintegro(ctx: Context[ServerSession, "AppContext"], reintegro_id: int) -> bool:
+    async def adjuntar_documentos_a_reintegro(ctx: Context[ServerSession, "AppContext"], reintegro_id: int) -> str:
         '''
          * Señal para adjuntar documentos a un reintegro.
          *
          * Esta herramienta marca un reintegro como "ESPERANDO_ADJUNTOS" y pone
-         * `adjuntos_confirmados = FALSE` llamando a la función de utilidades que
-         * actualiza la base de datos.
+         * `adjuntos_confirmados = FALSE` actualizando directamente la base de datos.
+         * Luego devuelve un enlace para que el usuario pueda subir los documentos.
          *
          * Parámetros:
          *   reintegro_id (int) — ID del reintegro al que se le adjuntarán documentos.
          *
          * Retorna:
-         *   bool — True si la actualización se realizó (fila afectada), False si no.
+         *   str — Enlace para adjuntar documentos al reintegro.
         '''
         try:
             db = ctx.request_context.lifespan_context.db
+            
+            # Usar la función de utilidad para actualizar el estado del reintegro
             success = await utils_reintegros.add_docs_reintegro(db.conn, reintegro_id)
-            return success
+            
+            if not success:
+                raise Exception(f"No se pudo actualizar el reintegro con ID {reintegro_id}")
+            
+            # Devolver el enlace para adjuntar documentos
+            return f"http://localhost:8501/?reintegro_id={reintegro_id}&open=adjuntos"
+            
         except Exception as e:
             raise Exception(f"Error en tool.adjuntar_documentos_a_reintegro: {e}")
