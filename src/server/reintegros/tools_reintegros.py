@@ -21,25 +21,32 @@ def register_reintegro_tools(mcp: FastMCP):
      *   None
     '''
     
-    @mcp.tool(name="mcp_obra_social_iniciar_reintegro")
+    @mcp.tool(name="iniciar_reintegro")
     async def iniciar_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int, total_presentado: float) -> int:
         '''
-         * Inicia el proceso de un nuevo reintegro creando un "contenedor" temporal.
-         *
-         * Esta es la **primera herramienta** que se debe llamar para comenzar un reintegro. Crea un registro base en estado 'pendiente' al cual se le agregarán ítems (prácticas, medicamentos) posteriormente.
-         *
-         * Workflow para el LLM:
-         * 1.  Usa esta herramienta para crear el reintegro temporal. Necesitas el `afiliado_id`. Si no lo tienes, búscalo primero con la herramienta `afiliado_por_dni`.
-         * 2.  La herramienta devuelve un `reintegro_id`. **Guarda este ID**, es esencial para los siguientes pasos.
-         * 3.  Usa el `reintegro_id` devuelto para llamar a la herramienta `agregar_item_a_reintegro` una o varias veces.
-         * 4.  Una vez que todos los ítems han sido agregados, usa la herramienta `finalizar_reintegro` para enviarlo a revisión.
-         *
-         * Parámetros:
-         *   afiliado_id (int) — El ID del afiliado que solicita el reintegro. Es un dato obligatorio.
-         *   total_presentado (float) — Un monto inicial presentado. Puede ser 0.0 si los montos se agregarán con cada ítem.
-         *
-         * Retorna:
-         *   int — El ID (`reintegro_id`) del reintegro temporal recién creado. Este ID es necesario para agregarle ítems.
+        Inicia un reintegro "temporal" (contenedor base).
+
+        Descripción:
+        - Crea el registro de reintegro en estado **PENDIENTE** y devuelve `reintegro_id`.
+        - Este ID se usará para agregar ítems y luego para generar el enlace de adjuntos.
+
+        Flujo para el LLM (estricto):
+        1) Llamar **primero** a esta herramienta con `afiliado_id` (si no lo tenés, obtenelo antes).
+        2) **Guardar** el `reintegro_id` retornado.
+        3) Llamar **una o varias veces** a `agregar_item_a_reintegro` usando ese `reintegro_id`.
+        4) Cuando haya al menos **1 ítem**, llamar a `adjuntar_documentos_a_reintegro` para pasar el caso a la UI del afiliado.
+        5) **No** llamar más herramientas después de `adjuntar_documentos_a_reintegro`: la finalización a **ENVIADO** la hace el afiliado en la UI (sube PDFs y pulsa “Enviar reintegro”).
+
+        Parámetros:
+        - afiliado_id (int): ID del afiliado que solicita el reintegro.
+        - total_presentado (float): Monto inicial; puede ser 0.0 si los montos vendrán por ítem.
+
+        Retorna:
+        - int: `reintegro_id` recién creado.
+
+        Notas de buen uso:
+        - Idempotencia: no vuelvas a iniciar si ya tenés un `reintegro_id` activo.
+        - Estado inicial esperado: PENDIENTE.
         '''
         try:
             db = ctx.request_context.lifespan_context.db
@@ -59,30 +66,36 @@ def register_reintegro_tools(mcp: FastMCP):
         medicamento_id: Optional[int] = None
     ) -> int:
         '''
-         * Agrega un ítem (práctica o medicamento) a un reintegro temporal.
-         *
-         * Esta herramienta se usa para añadir detalles específicos al reintegro que se inició previamente con `iniciar_reintegro`. Cada llamada agrega un ítem individual.
-         *
-         * Workflow para el LLM:
-         * 1. Asegúrate de tener el `reintegro_id` del reintegro temporal creado con `iniciar_reintegro`.
-         * 2. Si agregas una práctica, primero usa la herramienta `get_id_practica_por_nombre` para obtener el `practica_id`.
-         * 3. Si agregas un medicamento, asegúrate de tener su `medicamento_id`.
-         * 4. Usa esta herramienta para agregar cada ítem al reintegro.
-         * 5. La herramienta devuelve un `item_id` para cada ítem agregado.
-         * 6. Repite este proceso para cada ítem que desees agregar.
-         * 7. Una vez que todos los ítems han sido agregados, usa la herramienta `finalizar_reintegro`.
-         *
-         * Parámetros:
-         *   reintegro_id (int) — El ID del reintegro temporal al que se le va a agregar el ítem.
-         *   tipo (str) — Tipo de ítem, 'M' para medicamento o 'P' para práctica.
-         *   fecha_prestacion (date) — Fecha en formato 'YYYY-MM-DD' cuando se realizó la prestación.
-         *   monto_presentado (float) — Monto presentado para este ítem.
-         *   practica_id (Optional[int]) — El ID de la práctica si el tipo es 'P'. Requerido si tipo es 'P'.
-         *   medicamento_id (Optional[int]) — El ID del medicamento si el tipo es 'M'. Requerido si tipo es 'M'.
-         *
-         * Retorna:
-         *   int — El ID (`item_id`) del ítem agregado al reintegro.
+        Agrega un ítem (Práctica o Medicamento) a un reintegro existente.
+
+        Descripción:
+        - Inserta un ítem en el reintegro creado con `iniciar_reintegro`.
+        - Podés llamar esta herramienta varias veces para cargar múltiples ítems.
+
+        Flujo para el LLM (estricto):
+        1) Asegurate de tener `reintegro_id` (devuelto por `iniciar_reintegro`).
+        2) Si `tipo == 'P'` (Práctica), **requerido** `practica_id`.
+        3) Si `tipo == 'M'` (Medicamento), **requerido** `medicamento_id`.
+        4) Repetir hasta cargar todos los ítems necesarios.
+        5) Cuando haya al menos **1 ítem**, llamar a `mcp_obra_social_adjuntar_documentos_a_reintegro` para que el afiliado adjunte PDFs y complete el envío desde la UI.
+
+        Parámetros:
+        - reintegro_id (int): ID del reintegro al que se agrega el ítem.
+        - tipo (str): 'P' = práctica, 'M' = medicamento.
+        - fecha_prestacion (date): Fecha de la prestación (YYYY-MM-DD).
+        - monto_presentado (float): Monto presentado del ítem.
+        - practica_id (Optional[int]): Requerido si `tipo == 'P'`.
+        - medicamento_id (Optional[int]): Requerido si `tipo == 'M'`.
+
+        Retorna:
+        - int: `item_id` del ítem agregado.
+
+        Validaciones esperadas:
+        - Debe existir el `reintegro_id`.
+        - `tipo` solo puede ser 'P' o 'M'.
+        - Para la demo, no se validan duplicados; si el usuario lo pide, se pueden agregar varios ítems similares.
         '''
+
         try:
             db = ctx.request_context.lifespan_context.db
             item_id = await utils_reintegros.add_item_to_reintegro(
@@ -98,46 +111,35 @@ def register_reintegro_tools(mcp: FastMCP):
         except Exception as e:
             raise Exception(f"Error al agregar ítem al reintegro: {str(e)}")
 
-    @mcp.tool(name="mcp_obra_social_finalizar_reintegro")
-    async def finalizar_reintegro(ctx: Context[ServerSession, "AppContext"], reintegro_id: int) -> bool:
-        '''
-         * Finaliza un reintegro y lo envía a revisión.
-         *
-         * Esta es la **última herramienta** que se debe llamar en el flujo de un reintegro. Cambia el estado del reintegro de 'pendiente' a 'en_revision', indicando que ya no se pueden agregar más ítems.
-         *
-         * Workflow para el LLM:
-         * 1.  Llama a esta herramienta únicamente después de haber agregado todos los ítems necesarios con `agregar_item_a_reintegro`.
-         * 2.  Llama a esta herramienta solo cuando tenga archivos adjuntos listos para enviar (si es necesario).
-         * 3.  Necesitas el `reintegro_id` que obtuviste al llamar a `iniciar_reintegro`.
-         * 4.  Una vez ejecutada, el reintegro queda bloqueado y pasa al sistema de back-office para su procesamiento.
-         *
-         * Parámetros:
-         *   reintegro_id (int) — El ID del reintegro que se va a finalizar.
-         *
-         * Retorna:
-         *   bool — `True` si el reintegro se finalizó y envió a revisión correctamente, `False` en caso contrario.
-        '''
-        try:
-            db = ctx.request_context.lifespan_context.db
-            success = await utils_reintegros.commit_reintegro(db.conn, reintegro_id)
-            return success
-        except Exception as e:
-            raise Exception(f"Error al finalizar el reintegro: {str(e)}")
 
     @mcp.tool(name="mcp_obra_social_adjuntar_documentos_a_reintegro")
     async def adjuntar_documentos_a_reintegro(ctx: Context[ServerSession, "AppContext"], reintegro_id: int) -> str:
         '''
-         * Señal para adjuntar documentos a un reintegro.
-         *
-         * Esta herramienta marca un reintegro como "ESPERANDO_ADJUNTOS" y pone
-         * `adjuntos_confirmados = FALSE` actualizando directamente la base de datos.
-         * Luego devuelve un enlace para que el usuario pueda subir los documentos.
-         *
-         * Parámetros:
-         *   reintegro_id (int) — ID del reintegro al que se le adjuntarán documentos.
-         *
-         * Retorna:
-         *   str — Enlace para adjuntar documentos al reintegro.
+        Habilita la carga de comprobantes y te devuelve el enlace para que la persona usuaria los suba.
+
+        Cuándo usarla
+        - Solo cuando el reintegro ya tiene al menos un ítem cargado.
+
+        Qué hace
+        - Pone el trámite en “esperando comprobantes”.
+        - Devuelve un enlace directo a la pantalla donde se suben 1–2 archivos PDF.
+
+        Cómo comunicarlo al usuario (texto claro y breve)
+        - Compartí el enlace y explicá en lenguaje simple:
+        • “Abrí este link para subir hasta 2 comprobantes (PDF).”
+        • “Al finalizar, presioná ‘Enviar reintegro’ para cerrar el trámite.”
+        • ⚠️ “Importante: una vez enviado, el reintegro queda cerrado y no se puede modificar.”
+
+        Reglas clave para el asistente
+        - ❌ No existe una herramienta para finalizar desde acá: el envío final ocurre únicamente en la pantalla del enlace.
+        - ✅ Después de compartir el link, no llames más tools en este flujo.
+        - ✅ Tras el envío desde la UI, el reintegro pasa a ENVIADO y ya no admite cambios (ni ítems, ni montos, ni adjuntos).
+
+        Qué le tenés que pasar (internamente, sin decirlo al usuario)
+        - La referencia interna del reintegro (no la muestres).
+
+        Qué te devuelve
+        - Un enlace listo para compartir. Evitá mencionar números o códigos; el link alcanza.
         '''
         try:
             db = ctx.request_context.lifespan_context.db

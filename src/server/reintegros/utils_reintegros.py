@@ -89,31 +89,6 @@ async def add_item_to_reintegro(
     except Exception as e:
         raise Exception(f"Error en utils.add_item_to_reintegro: {e}")
 
-'''
- * Cambia el estado de un reintegro a 'en_revision'.
- * Parámetros:
- *   connection (asyncpg.Connection) — Conexión a la base de datos.
- *   reintegro_id (int) — ID del reintegro a finalizar.
- * Retorna:
- *   bool — True si la actualización fue exitosa, False en caso contrario.
-'''
-async def commit_reintegro(connection: asyncpg.Connection, reintegro_id: int) -> bool:
-    try:
-        query = """
-            UPDATE public.reintegro
-            SET estado = 'en_revision', updated_at = NOW()
-            WHERE reintegro_id = $1 AND estado = 'pendiente'
-        """
-        result = await connection.execute(query, reintegro_id)
-        
-        # El resultado de execute es una cadena como 'UPDATE 1'
-        if result and result.startswith("UPDATE") and int(result.split()[1]) > 0:
-            return True
-        else:
-            return False
-    except Exception as e:
-        raise Exception(f"Error en utils.commit_reintegro: {e}")
-
 async def add_docs_reintegro(connection: asyncpg.Connection, reintegro_id: int) -> bool:
     '''
      * Marca un reintegro como esperando adjuntos y resetea la confirmación de adjuntos.
