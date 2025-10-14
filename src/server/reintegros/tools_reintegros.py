@@ -55,7 +55,7 @@ def register_reintegro_tools(mcp: FastMCP):
         except Exception as e:
             raise Exception(f"Error al iniciar reintegro: {str(e)}")
 
-    @mcp.tool(name="mcp_obra_social_agregar_item_a_reintegro")
+    @mcp.tool(name="agregar_item_a_reintegro")
     async def agregar_item_a_reintegro(
         ctx: Context[ServerSession, "AppContext"],
         reintegro_id: int,
@@ -112,34 +112,41 @@ def register_reintegro_tools(mcp: FastMCP):
             raise Exception(f"Error al agregar ítem al reintegro: {str(e)}")
 
 
-    @mcp.tool(name="mcp_obra_social_adjuntar_documentos_a_reintegro")
+    @mcp.tool(name="adjuntar_documentos_a_reintegro")
     async def adjuntar_documentos_a_reintegro(ctx: Context[ServerSession, "AppContext"], reintegro_id: int) -> str:
         '''
-        Habilita la carga de comprobantes y te devuelve el enlace para que la persona usuaria los suba.
+        Activa el formulario de carga de comprobantes para que el usuario finalice el reintegro.
 
         Cuándo usarla
         - Solo cuando el reintegro ya tiene al menos un ítem cargado.
+        - ⚠️ SIEMPRE preguntar al usuario antes de llamar a esta herramienta.
 
         Qué hace
-        - Pone el trámite en “esperando comprobantes”.
-        - Devuelve un enlace directo a la pantalla donde se suben 1–2 archivos PDF.
+        - Pone el trámite en estado "esperando comprobantes".
+        - Activa el formulario donde el usuario puede subir 1–2 archivos PDF.
+        - El formulario se abrirá automáticamente en la interfaz del usuario.
 
         Cómo comunicarlo al usuario (texto claro y breve)
-        - Compartí el enlace y explicá en lenguaje simple:
-        • “Abrí este link para subir hasta 2 comprobantes (PDF).”
-        • “Al finalizar, presioná ‘Enviar reintegro’ para cerrar el trámite.”
-        • ⚠️ “Importante: una vez enviado, el reintegro queda cerrado y no se puede modificar.”
+        Antes de llamar a esta tool, PREGUNTÁ:
+        • "¿Querés que active el formulario para subir los comprobantes ahora?"
+        • "¿Estás listo para adjuntar los documentos?"
+        
+        Después de activar el formulario:
+        • "Activé el formulario para que subas hasta 2 comprobantes (PDF)."
+        • "Al finalizar, presioná 'Enviar reintegro' para cerrar el trámite."
+        • ⚠️ "Importante: una vez enviado, el reintegro queda cerrado y no se puede modificar."
 
         Reglas clave para el asistente
-        - ❌ No existe una herramienta para finalizar desde acá: el envío final ocurre únicamente en la pantalla del enlace.
-        - ✅ Después de compartir el link, no llames más tools en este flujo.
+        - 🔴 OBLIGATORIO: Preguntar SIEMPRE antes de ejecutar esta herramienta.
+        - ❌ No existe una herramienta para finalizar desde acá: el envío final ocurre únicamente en el formulario.
+        - ✅ Después de activar el formulario, no llames más tools en este flujo.
         - ✅ Tras el envío desde la UI, el reintegro pasa a ENVIADO y ya no admite cambios (ni ítems, ni montos, ni adjuntos).
 
         Qué le tenés que pasar (internamente, sin decirlo al usuario)
         - La referencia interna del reintegro (no la muestres).
 
         Qué te devuelve
-        - Un enlace listo para compartir. Evitá mencionar números o códigos; el link alcanza.
+        - Confirmación de que el formulario fue activado (no mostrar los detalles técnicos al usuario).
         '''
         try:
             db = ctx.request_context.lifespan_context.db
@@ -150,8 +157,13 @@ def register_reintegro_tools(mcp: FastMCP):
             if not success:
                 raise Exception(f"No se pudo actualizar el reintegro con ID {reintegro_id}")
             
-            # Devolver el enlace para adjuntar documentos
-            return f"http://localhost:8501/?reintegro_id={reintegro_id}&open=adjuntos"
+            # Retornar:
+            import json
+            return json.dumps({
+                "accion": "activar_form_reintegro",
+                "reintegro_id": reintegro_id,
+                "url": f"http://localhost:8000/reintegros/{reintegro_id}"
+            })
             
         except Exception as e:
             raise Exception(f"Error en tool.adjuntar_documentos_a_reintegro: {e}")
