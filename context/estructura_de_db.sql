@@ -78,12 +78,11 @@ CREATE TABLE public.afiliado (
 	email text NULL,
 	tel text NULL,
 	plan_id int4 NULL,
+	numero_afiliado bpchar(8) DEFAULT '00000000'::bpchar NOT NULL,
+	domicilio text NULL,
 	CONSTRAINT afiliado_pkey PRIMARY KEY (afiliado_id),
-	CONSTRAINT afiliado_tipo_doc_nro_doc_key UNIQUE (tipo_doc, nro_doc)
+	CONSTRAINT afiliado_tipo_doc_nro_doc_key UNIQUE (tipo_doc, nro_doc),
+	CONSTRAINT afiliado_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public."plan"(plan_id)
 );
 CREATE INDEX idx_afiliado_doc ON public.afiliado USING btree (tipo_doc, nro_doc);
-
--- public.afiliado foreign keys
-
-ALTER TABLE public.afiliado ADD CONSTRAINT afiliado_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public."plan"(plan_id);
 

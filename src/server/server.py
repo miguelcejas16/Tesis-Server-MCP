@@ -139,6 +139,30 @@ async def practicas_cubiertas(ctx: Context[ServerSession, AppContext], plan_id: 
     except Exception as e:
         raise Exception(f"Error al obtener prácticas cubiertas: {str(e)}")
 
+'''
+Ruta SIMPLE para servir archivos de descarga
+Permite acceder a archivos generados en /static/downloads/
+'''
+@mcp.get("/static/downloads/{filename}")
+async def descargar_archivo(filename: str):
+    from starlette.responses import FileResponse
+    
+    # Ruta a la carpeta de descargas
+    downloads_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'downloads'))
+    archivo_path = os.path.join(downloads_path, filename)
+    
+    # Verificar que el archivo existe
+    if not os.path.exists(archivo_path):
+        return {"error": "Archivo no encontrado"}
+    
+    # Devolver el archivo
+    return FileResponse(archivo_path, filename=filename)
+
 if __name__ == "__main__":
-    # Initialize and run the server
+    # Crear carpeta downloads si no existe (SIMPLE)
+    downloads_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'downloads'))
+    os.makedirs(downloads_path, exist_ok=True)
+    logger.info(f"Carpeta de descargas lista: {downloads_path}")
+    
+    # Inicializar y ejecutar el servidor
     mcp.run(transport='stdio')

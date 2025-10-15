@@ -227,4 +227,41 @@ def register_reintegro_tools(mcp: FastMCP):
             return json.dumps(_serial(reintegros))
         except Exception as e:
             raise Exception(f"Error al listar reintegros del afiliado: {str(e)}")
+        
+    @mcp.tool(name="generar_nota_reintegro")
+    async def generar_nota_reintegro(
+        ctx: Context[ServerSession, "AppContext"],
+        descripcion: str,
+        numero_afiliado: str
+    ) -> str:
+        """
+        Genera el texto completo de una nota dirigida al Director/a de OSEP
+        para solicitudes de afiliados titulares.
+
+        La herramienta utiliza un modelo de lenguaje (LLM) para redactar la parte
+        descriptiva de la nota de manera formal, basándose en el motivo que
+        el afiliado proporciona (por ejemplo: "solicito reintegro por gastos médicos").
+
+        Parámetros:
+        - descripcion (str): Motivo o solicitud principal escrita por el afiliado.
+        El LLM debe usar este texto como punto de partida para redactar un párrafo
+        formal y coherente que se insertará en la nota, manteniendo el tono administrativo.
+        - numero_afiliado (str): Número de carné del afiliado titular.
+
+        Salida:
+        - Devuelve una cadena con el texto completo de la nota lista para incluir en el documento,
+        con redacción formal y adaptada al motivo ingresado.
+        """
+        try:
+            import json
+            db = ctx.request_context.lifespan_context.db
+            result = await utils_reintegros.new_nota_reintegro(
+                db.conn,
+                descripcion,
+                numero_afiliado
+            )
+            # Devolver siempre JSON serializado (string) para el flujo de herramientas
+            return json.dumps(result)
+        except Exception as e:
+            raise Exception(f"Error en tool.generar_nota_reintegro: {e}")
 

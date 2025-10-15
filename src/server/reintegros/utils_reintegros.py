@@ -159,3 +159,115 @@ async def list_reintegros_por_afiliado_y_rango(
         return [dict(r) for r in rows]
     except Exception as e:
         raise Exception(f"Error en utils.list_reintegros_por_afiliado_y_rango: {e}")
+
+'''
+Genera una nota para el reintegro y devuelve una URL de descarga accesible.
+- Busca el afiliado por numero_afiliado en la tabla public.afiliado.
+- Rellena la plantilla Word con los datos del afiliado y la descripcion.
+- Guarda el archivo en una carpeta accesible y devuelve la URL de descarga.
+'''
+async def new_nota_reintegro(
+    connection: asyncpg.Connection,
+    descripcion: str,
+    numero_afiliado: str,
+) -> dict:
+    from datetime import datetime
+    from docx import Document
+    import os
+
+    try:
+        # Buscar afiliado por numero_afiliado
+        query_af = """
+            SELECT nombre, apellido, domicilio, tel, email, tipo_doc, nro_doc, numero_afiliado
+            FROM public.afiliado
+            WHERE numero_afiliado = $1
+            LIMIT 1
+        """
+        af = await connection.fetchrow(query_af, numero_afiliado)
+        if not af:
+            return {'exito': False, 'error': f'Afiliado no encontrado: {numero_afiliado}'}
+
+        # Preparar datos del afiliado
+        nombre_completo = f"{(af.get('nombre') or '').strip()} {(af.get('apellido') or '').strip()}".strip()
+        domicilio = af.get('domicilio') or ''
+        telefono = af.get('tel') or ''
+        email = af.get('email') or ''
+        carne_numero = af.get('numero_afiliado') or numero_afiliado
+        documento_numero = af.get('nro_doc') or ''
+
+        # Usar la fecha actual
+        fecha_obj = datetime.now()
+        meses = [
+            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        ]
+        fecha_dia = str(fecha_obj.day)
+        fecha_mes = meses[fecha_obj.month - 1]
+        fecha_anio = str(fecha_obj.year)
+
+        # Usar solo la descripcion provista
+        texto_solicitud = descripcion or ''
+
+        # Cargar plantilla (ruta relativa simple)
+        plantilla_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'static', 'plantilla_nota_reintegro.docx'))
+        doc = Document(plantilla_path)
+
+        # Reemplazos simples
+        reemplazos = {
+            '{{FECHA_DIA}}': fecha_dia,
+            '{{FECHA_MES}}': fecha_mes,
+            '{{FECHA_ANIO}}': fecha_anio,
+            '{{TEXTO_SOLICITUD}}': texto_solicitud,
+            '{{NOMBRE_COMPLETO}}': nombre_completo,
+            '{{DOMICILIO}}': domicilio,
+            '{{TELEFONO}}': telefono,
+            '{{EMAIL}}': email,
+            '{{CARNE_NUMERO}}': carne_numero,
+            '{{DOCUMENTO_NUMERO}}': documento_numero
+        }
+
+        # Reemplazar en párrafos
+        for parrafo in doc.paragraphs:
+            for marcador, valor in reemplazos.items():
+                if marcador in parrafo.text:
+                    for run in parrafo.runs:
+                        if marcador in run.text:
+                            run.text = run.text.replace(marcador, str(valor))
+
+        # Reemplazar en tablas
+        for tabla in doc.tables:
+            for fila in tabla.rows:
+                for celda in fila.cells:
+                    for parrafo in celda.paragraphs:
+                        for marcador, valor in reemplazos.items():
+                            if marcador in parrafo.text:
+                                for run in parrafo.runs:
+                                    if marcador in run.text:
+                                        run.text = run.text.replace(marcador, str(valor))
+
+        # Guardar archivo en carpeta accesible públicamente
+        nombre_archivo = f"Nota_OSEP_{carne_numero}_{fecha_obj.strftime('%Y%m%d_%H%M%S')}.docx"
+        
+        # Carpeta pública para archivos descargables
+        carpeta_publica = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'static', 'downloads'))
+        os.makedirs(carpeta_publica, exist_ok=True)
+        
+        ruta_docx = os.path.join(carpeta_publica, nombre_archivo)
+        doc.save(ruta_docx)
+
+        # Generar URL de descarga accesible
+        # NOTA: Ajustar el dominio según tu configuración del servidor
+        download_url = f"/static/downloads/{nombre_archivo}"
+
+        return {
+            'exito': True,
+            'archivo': nombre_archivo,
+            'download_url': download_url,
+            'mensaje': f'Nota generada correctamente. Puede descargarla desde: {download_url}'
+        }
+
+    except Exception as e:
+        return {
+            'exito': False,
+            'error': str(e)
+        }
