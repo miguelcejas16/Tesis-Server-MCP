@@ -111,7 +111,6 @@ def register_reintegro_tools(mcp: FastMCP):
         except Exception as e:
             raise Exception(f"Error al agregar ítem al reintegro: {str(e)}")
 
-
     @mcp.tool(name="adjuntar_documentos_a_reintegro")
     async def adjuntar_documentos_a_reintegro(ctx: Context[ServerSession, "AppContext"], reintegro_id: int) -> str:
         '''
@@ -167,3 +166,65 @@ def register_reintegro_tools(mcp: FastMCP):
             
         except Exception as e:
             raise Exception(f"Error en tool.adjuntar_documentos_a_reintegro: {e}")
+        
+    @mcp.tool(name="listar_reintegros_afiliado")
+    async def listar_reintegros_afiliado(
+        ctx: Context[ServerSession, "AppContext"],
+        afiliado_id: int,
+        fecha_desde: date,
+        fecha_hasta: date
+    ) -> str:
+        '''
+        Lista reintegros para un afiliado dentro de un rango de fechas (inclusive).
+
+        Instrucciones para el LLM que use esta herramienta:
+        - Pedir siempre al usuario el RANGO de fechas en formato YYYY-MM-DD:
+          "Por favor indicá fecha desde (YYYY-MM-DD) y fecha hasta (YYYY-MM-DD)."
+        - Si el usuario NO puede dar un rango pero aporta UNA fecha estimada,
+          pedir: "Si solo tenés una fecha estimada, indicámela (YYYY-MM-DD) y yo usaré ese día ±5 días."
+          En ese caso construir el rango automáticamente restando 5 días a la fecha estimada para `fecha_desde`
+          y sumando 5 días para `fecha_hasta`.
+        - Validar el formato de la(s) fecha(s) antes de llamar a la tool.
+        - Confirmar con el usuario el rango final que se usará:
+          "Voy a buscar reintegros desde {fecha_desde} hasta {fecha_hasta}. ¿Continuo?"
+        - Solo llamar esta herramienta cuando el usuario confirme el rango.
+
+        Parámetros:
+        - afiliado_id (int): ID del afiliado.
+        - fecha_desde (date): Fecha inicial (inclusive).
+        - fecha_hasta (date): Fecha final (inclusive).
+
+        Retorna:
+        - str: JSON con la lista de reintegros y sus detalles.
+
+        Notas:
+        - El formato de fecha es YYYY-MM-DD.
+        - Si no hay reintegros, retorna una lista vacía.
+        '''
+        try:
+            import json
+            from decimal import Decimal
+            from datetime import date, datetime
+
+            # Llamada directa a la utilidad; asumimos que las fechas vienen ya en el formato esperado.
+            db = ctx.request_context.lifespan_context.db
+            reintegros = await utils_reintegros.list_reintegros_por_afiliado_y_rango(
+                db.conn, afiliado_id, fecha_desde, fecha_hasta
+            )
+
+            # Conversión simple y recursiva para que json.dumps pueda serializar Decimals y fechas.
+            def _serial(obj):
+                if isinstance(obj, Decimal):
+                    return float(obj)
+                if isinstance(obj, (date, datetime)):
+                    return obj.isoformat()
+                if isinstance(obj, dict):
+                    return {k: _serial(v) for k, v in obj.items()}
+                if isinstance(obj, list):
+                    return [_serial(i) for i in obj]
+                return obj
+
+            return json.dumps(_serial(reintegros))
+        except Exception as e:
+            raise Exception(f"Error al listar reintegros del afiliado: {str(e)}")
+

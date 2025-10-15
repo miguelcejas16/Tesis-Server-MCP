@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 import asyncpg
 
 '''
@@ -125,3 +125,37 @@ async def add_docs_reintegro(connection: asyncpg.Connection, reintegro_id: int) 
         return False
     except Exception as e:
         raise Exception(f"Error en utils.add_docs_reintegro: {e}")
+
+'''
+ * Lista reintegros para un afiliado dentro de un rango de fechas (inclusive).
+ *
+ * Parámetros:
+ *   connection (asyncpg.Connection) — Conexión a la base de datos.
+ *   afiliado_id (int) — ID del afiliado.
+ *   fecha_desde (date) — Fecha inicial (inclusive).
+ *   fecha_hasta (date) — Fecha final (inclusive).
+ *
+ * Retorna:
+ *   List[dict] — Lista de reintegros (cada item es un dict con columnas seleccionadas).
+ *
+ * Notas:
+ *   - Se usa fecha_presentacion::date para comparar solo la parte fecha.
+'''
+async def list_reintegros_por_afiliado_y_rango(
+    connection: asyncpg.Connection,
+    afiliado_id: int,
+    fecha_desde: date,
+    fecha_hasta: date,
+) -> List[dict]:
+    try:
+        query = """
+            SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado, fecha_presentacion, updated_at
+            FROM public.reintegro
+            WHERE afiliado_id = $1
+              AND fecha_presentacion::date BETWEEN $2 AND $3
+            ORDER BY fecha_presentacion DESC
+        """
+        rows = await connection.fetch(query, afiliado_id, fecha_desde, fecha_hasta)
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise Exception(f"Error en utils.list_reintegros_por_afiliado_y_rango: {e}")

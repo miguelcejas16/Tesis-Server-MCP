@@ -21,12 +21,11 @@ CREATE TABLE public.reintegro (
 	total_presentado numeric(12, 2) DEFAULT 0 NULL,
 	total_aprobado numeric(12, 2) DEFAULT 0 NULL,
 	observaciones text NULL,
-	updated_at timestamp DEFAULT now() NOT NULL,
-	adjuntos_confirmados bool DEFAULT false NOT NULL,
-	CONSTRAINT reintegro_estado_check CHECK ((estado = ANY (ARRAY['pendiente'::text, 'en_revision'::text, 'observado'::text, 'aprobado'::text, 'parcial'::text, 'rechazado'::text, 'liquidado'::text, 'pagado'::text]))),
-	CONSTRAINT reintegro_pkey PRIMARY KEY (reintegro_id)
+	adjuntos_confirmados bool NULL,
+	updated_at timestamp NULL,
+	CONSTRAINT reintegro_pkey PRIMARY KEY (reintegro_id),
+	CONSTRAINT reintegro_afiliado_id_fkey FOREIGN KEY (afiliado_id) REFERENCES public.afiliado(afiliado_id)
 );
-CREATE INDEX idx_reintegro_afiliado_fecha ON public.reintegro USING btree (afiliado_id, fecha_presentacion DESC);
 CREATE INDEX idx_reintegro_estado ON public.reintegro USING btree (estado, fecha_presentacion);
 
 -- Table Triggers
