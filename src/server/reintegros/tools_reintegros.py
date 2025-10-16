@@ -231,35 +231,52 @@ def register_reintegro_tools(mcp: FastMCP):
     @mcp.tool(name="generar_nota_reintegro")
     async def generar_nota_reintegro(
         ctx: Context[ServerSession, "AppContext"],
-        descripcion: str,
+        motivo: str,
         numero_afiliado: str
     ) -> str:
-        """
-        Genera el texto completo de una nota dirigida al Director/a de OSEP
-        para solicitudes de afiliados titulares.
+        '''
+        Genera una nota formal dirigida al Director/a de OSEP para solicitudes de reintegro.
 
-        La herramienta utiliza un modelo de lenguaje (LLM) para redactar la parte
-        descriptiva de la nota de manera formal, basándose en el motivo que
-        el afiliado proporciona (por ejemplo: "solicito reintegro por gastos médicos").
+        Instrucciones para el LLM (IMPORTANTE):
+        Antes de llamar a esta herramienta, SIEMPRE preguntar al afiliado:
+        1. ¿En qué lugar se realizó la prestación? (ciudad, clínica, hospital, etc.)
+        2. ¿En qué fecha fue la prestación? (formato DD/MM/YYYY)
+        3. ¿Quién fue el prestador? (nombre del médico, profesional o institución)
+        4. ¿Cuál es el motivo de la solicitud? (qué necesita autorizar o reintegrar)
+
+        Luego, construir el texto del motivo con esta estructura OBLIGATORIA:
+        
+        "Me dirijo a usted con el fin de [solicitud específica del afiliado]. La prestación fue realizada en [lugar] el día [fecha] por [prestador]. Adjunto los comprobantes y documentación requerida."
+
+        Ejemplo completo:
+        "Me dirijo a usted con el fin de solicitar el reintegro de una consulta médica especializada. La prestación fue realizada en Clínica San Martín, Mendoza, el día 15/10/2024 por el Dr. Juan Pérez. Adjunto los comprobantes y documentación requerida."
 
         Parámetros:
-        - descripcion (str): Motivo o solicitud principal escrita por el afiliado.
-        El LLM debe usar este texto como punto de partida para redactar un párrafo
-        formal y coherente que se insertará en la nota, manteniendo el tono administrativo.
+        - motivo (str): Texto completo de la nota siguiendo la estructura indicada arriba.
         - numero_afiliado (str): Número de carné del afiliado titular.
 
         Salida:
-        - Devuelve una cadena con el texto completo de la nota lista para incluir en el documento,
-        con redacción formal y adaptada al motivo ingresado.
-        """
+        - Devuelve la URL completa para descargar la nota generada en PDF.
+        '''
         try:
             import json
-            db = ctx.request_context.lifespan_context.db
-            result = await utils_reintegros.new_nota_reintegro(
-                db.conn,
-                descripcion,
-                numero_afiliado
-            )
+            import httpx
+            
+            # Preparar el body del POST
+            payload = {
+                "motivo": motivo,
+                "afiliado_numero": numero_afiliado
+            }
+            
+            # Hacer la llamada POST a la API
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "http://localhost:8000/reintegros/generar-nota",
+                    json=payload
+                )
+                response.raise_for_status()
+                result = response.json()
+            
             # Devolver siempre JSON serializado (string) para el flujo de herramientas
             return json.dumps(result)
         except Exception as e:
