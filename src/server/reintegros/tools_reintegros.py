@@ -22,7 +22,7 @@ def register_reintegro_tools(mcp: FastMCP):
     '''
     
     @mcp.tool(name="iniciar_reintegro")
-    async def iniciar_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int, total_presentado: float) -> int:
+    async def iniciar_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int) -> int:
         '''
         Inicia un reintegro "temporal" (contenedor base).
 
@@ -39,7 +39,6 @@ def register_reintegro_tools(mcp: FastMCP):
 
         Parámetros:
         - afiliado_id (int): ID del afiliado que solicita el reintegro.
-        - total_presentado (float): Monto inicial; puede ser 0.0 si los montos vendrán por ítem.
 
         Retorna:
         - int: `reintegro_id` recién creado.
@@ -50,7 +49,7 @@ def register_reintegro_tools(mcp: FastMCP):
         '''
         try:
             db = ctx.request_context.lifespan_context.db
-            reintegro_id = await utils_reintegros.create_temp_reintegro(db.conn, afiliado_id, total_presentado)
+            reintegro_id = await utils_reintegros.create_temp_reintegro(db.conn, afiliado_id)
             return reintegro_id
         except Exception as e:
             raise Exception(f"Error al iniciar reintegro: {str(e)}")

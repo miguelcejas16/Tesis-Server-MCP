@@ -16,29 +16,16 @@ CREATE INDEX idx_documento_reintegro_tipo ON documento(reintegro_id, tipo);
 CREATE TABLE public.reintegro (
 	reintegro_id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
 	afiliado_id int4 NOT NULL,
-	estado text DEFAULT 'pendiente'::text NULL,
+	estado text DEFAULT 'PENDIENTE'::text NOT NULL,
 	fecha_presentacion timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	total_presentado numeric(12, 2) DEFAULT 0 NULL,
 	total_aprobado numeric(12, 2) DEFAULT 0 NULL,
 	observaciones text NULL,
-	adjuntos_confirmados bool NULL,
-	updated_at timestamp NULL,
 	CONSTRAINT reintegro_pkey PRIMARY KEY (reintegro_id),
 	CONSTRAINT reintegro_afiliado_id_fkey FOREIGN KEY (afiliado_id) REFERENCES public.afiliado(afiliado_id)
 );
-CREATE INDEX idx_reintegro_estado ON public.reintegro USING btree (estado, fecha_presentacion);
-
--- Table Triggers
-
-create trigger tr_reintegro_set_updated_at before
-update
-    on
-    public.reintegro for each row execute function tg_set_updated_at();
-
-
--- public.reintegro foreign keys
-
-ALTER TABLE public.reintegro ADD CONSTRAINT reintegro_afiliado_id_fkey FOREIGN KEY (afiliado_id) REFERENCES public.afiliado(afiliado_id);
+CREATE INDEX idx_reintegro_afiliado ON public.reintegro USING btree (afiliado_id);
+CREATE INDEX idx_reintegro_estado_fecha ON public.reintegro USING btree (estado, fecha_presentacion);
 
 
 -- public.reintegro_item definition

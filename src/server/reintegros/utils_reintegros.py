@@ -3,33 +3,30 @@ from typing import Optional, Literal, List
 import asyncpg
 
 '''
- * Crea un registro de reintegro temporal en la base de datos.
- * Parámetros:
- *   connection (asyncpg.Connection) — Conexión a la base de datos.
- *   afiliado_id (int) — ID del afiliado que solicita el reintegro.
- *   total_presentado (float) — Monto total presentado inicialmente.
- * Retorna:
- *   int — El ID del reintegro creado.
- * Notas:
- *   El estado inicial del reintegro se establece como 'pendiente'.
+Crea un reintegro temporal según la nueva estructura de la tabla `reintegro`.
+Parámetros:
+  connection (asyncpg.Connection) — Conexión a la base de datos.
+  afiliado_id (int) — ID del afiliado que solicita el reintegro.
+  total_presentado (float) — Monto total presentado inicialmente.
+Retorna:
+  int — El ID del reintegro creado.
 '''
 async def create_temp_reintegro(
         connection: asyncpg.Connection, 
         afiliado_id: int,
-        total_presentado: float,
-        ) -> int: 
+        ) -> int:
     try:
         query = """
-            INSERT INTO public.reintegro (afiliado_id, estado, total_presentado, total_aprobado)
-            VALUES ($1, 'pendiente', $2, 0.0)
+            INSERT INTO public.reintegro (
+                afiliado_id, estado, total_presentado, total_aprobado
+            )
+            VALUES ($1, 'PENDIENTE', 0::numeric, 0::numeric)
             RETURNING reintegro_id
         """
-        result = await connection.fetchrow(query, afiliado_id, total_presentado)
-
-        if result:
-            return result['reintegro_id']
-        else:
-            raise Exception("No se pudo crear el reintegro y obtener el ID.")
+        row = await connection.fetchrow(query, afiliado_id)
+        if not row:
+            raise Exception("No se pudo crear el reintegro.")
+        return row['reintegro_id']
     except Exception as e:
         raise Exception(f"Error en utils.create_temp_reintegro: {e}")
 
@@ -101,15 +98,13 @@ async def add_docs_reintegro(connection: asyncpg.Connection, reintegro_id: int) 
      *   bool — True si la actualización afectó al menos una fila (éxito), False si no (reintegro no encontrado).
      *
      * Notas:
-     *   - Actualiza también el campo `updated_at` con NOW().
      *   - Si la tabla o columnas tienen nombres distintos, ajustar la consulta.
     '''
     try:
         query = """
             UPDATE public.reintegro
             SET estado = 'ESPERANDO_ADJUNTOS',
-                adjuntos_confirmados = FALSE,
-                updated_at = NOW()
+                adjuntos_confirmados = FALSE
             WHERE reintegro_id = $1
         """
         result = await connection.execute(query, reintegro_id)
@@ -140,6 +135,7 @@ async def add_docs_reintegro(connection: asyncpg.Connection, reintegro_id: int) 
  *
  * Notas:
  *   - Se usa fecha_presentacion::date para comparar solo la parte fecha.
+ *   - La tabla `reintegro` no tiene `updated_at`; se seleccionan columnas existentes.
 '''
 async def list_reintegros_por_afiliado_y_rango(
     connection: asyncpg.Connection,
@@ -149,7 +145,7 @@ async def list_reintegros_por_afiliado_y_rango(
 ) -> List[dict]:
     try:
         query = """
-            SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado, fecha_presentacion, updated_at
+            SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado, fecha_presentacion, observaciones
             FROM public.reintegro
             WHERE afiliado_id = $1
               AND fecha_presentacion::date BETWEEN $2 AND $3
