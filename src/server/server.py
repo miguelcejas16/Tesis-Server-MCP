@@ -76,18 +76,18 @@ mcp = FastMCP("Obra Social Server", lifespan=app_lifespan)
 register_reintegro_tools(mcp)
 
 @mcp.tool()
-async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], tipo_doc: str, nro_doc: str) -> Optional[Afiliado]:
+async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], numero_afiliado: str, nro_doc: str) -> Optional[Afiliado]:
     """
     Busca un afiliado por tipo y número de documento
     Args:
-        tipo_doc (str): Tipo de documento (DNI, PASAPORTE, etc.)
+        numero_afiliado (str): Número de afiliado
         nro_doc (str): Número de documento
     Returns:
         Datos del afiliado, incluyendo su plan_id
     """
     try:
         db = ctx.request_context.lifespan_context.db
-        resultado = await buscar_afiliado_por_dni(db.conn, tipo_doc, nro_doc)
+        resultado = await buscar_afiliado_por_dni(db.conn, numero_afiliado, nro_doc)
         return resultado
     except Exception as e:
         raise Exception(f"Error al buscar afiliado: {str(e)}")

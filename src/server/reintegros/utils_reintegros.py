@@ -7,23 +7,24 @@ Crea un reintegro temporal según la nueva estructura de la tabla `reintegro`.
 Parámetros:
   connection (asyncpg.Connection) — Conexión a la base de datos.
   afiliado_id (int) — ID del afiliado que solicita el reintegro.
-  total_presentado (float) — Monto total presentado inicialmente.
+  cbu (str) — CBU asociado al reintegro.
 Retorna:
   int — El ID del reintegro creado.
 '''
 async def create_temp_reintegro(
         connection: asyncpg.Connection, 
         afiliado_id: int,
+        cbu: str
         ) -> int:
     try:
         query = """
             INSERT INTO public.reintegro (
-                afiliado_id, estado, total_presentado, total_aprobado
+                afiliado_id, estado, total_presentado, total_aprobado, cbu
             )
-            VALUES ($1, 'PENDIENTE', 0::numeric, 0::numeric)
+            VALUES ($1, 'PENDIENTE', 0::numeric, 0::numeric, $2)
             RETURNING reintegro_id
         """
-        row = await connection.fetchrow(query, afiliado_id)
+        row = await connection.fetchrow(query, afiliado_id, cbu)
         if not row:
             raise Exception("No se pudo crear el reintegro.")
         return row['reintegro_id']

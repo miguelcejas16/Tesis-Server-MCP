@@ -21,12 +21,13 @@ CREATE TABLE public.reintegro (
 	total_presentado numeric(12, 2) DEFAULT 0 NULL,
 	total_aprobado numeric(12, 2) DEFAULT 0 NULL,
 	observaciones text NULL,
+	cbu varchar(22) NOT NULL,
+	adjuntos_confirmados bool DEFAULT false NOT NULL,
 	CONSTRAINT reintegro_pkey PRIMARY KEY (reintegro_id),
 	CONSTRAINT reintegro_afiliado_id_fkey FOREIGN KEY (afiliado_id) REFERENCES public.afiliado(afiliado_id)
 );
 CREATE INDEX idx_reintegro_afiliado ON public.reintegro USING btree (afiliado_id);
 CREATE INDEX idx_reintegro_estado_fecha ON public.reintegro USING btree (estado, fecha_presentacion);
-
 
 -- public.reintegro_item definition
 CREATE TABLE public.reintegro_item (

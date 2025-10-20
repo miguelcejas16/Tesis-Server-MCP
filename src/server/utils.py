@@ -7,15 +7,15 @@ from bd.baseModels import Afiliado, Practica
 from typing import Optional, List, Literal
 
 # buscar afiliado por dni
-async def buscar_afiliado_por_dni(connection, tipo_doc: str, nro_doc: str) -> Optional[Afiliado]:
+async def buscar_afiliado_por_dni(connection, numero_afiliado: str, nro_doc: str) -> Optional[Afiliado]:
     try:
         query = """
             SELECT afiliado_id, tipo_doc, nro_doc, nombre, apellido, 
                    fecha_nac, email, tel, plan_id
             FROM public.afiliado 
-            WHERE tipo_doc = $1 AND nro_doc = $2
+            WHERE afiliado_numero = $1 AND nro_doc = $2
         """
-        result = await connection.fetchrow(query, tipo_doc, nro_doc)
+        result = await connection.fetchrow(query, numero_afiliado, nro_doc)
         
         if result:
             afiliado = Afiliado(**dict(result))

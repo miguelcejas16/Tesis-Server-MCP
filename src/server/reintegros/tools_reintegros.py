@@ -6,6 +6,8 @@ from typing import Optional
 # Importar el tipo AppContext desde server.py para anotaciones
 # Se usa 'if TYPE_CHECKING' para evitar importaciones circulares en runtime.
 from typing import TYPE_CHECKING
+
+from ...bd.baseModels import ReglamentoReintegro
 if TYPE_CHECKING:
     from ..server import AppContext
 
@@ -21,31 +23,97 @@ def register_reintegro_tools(mcp: FastMCP):
      *   None
     '''
     
-    @mcp.tool(name="iniciar_reintegro")
-    async def iniciar_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int) -> int:
+    @mcp.tool()
+    async def get_reglamento_reintegro() -> ReglamentoReintegro:
         '''
-        Inicia un reintegro "temporal" (contenedor base).
+        Muestra el reglamento oficial de reintegros de OSEP.
 
-        Descripción:
-        - Crea el registro de reintegro en estado **PENDIENTE** y devuelve `reintegro_id`.
-        - Este ID se usará para agregar ítems y luego para generar el enlace de adjuntos.
+        Cuándo usarla:
+        - Cuando el afiliado menciona "reintegro" por primera vez.
+        - Cuando pregunta "¿Qué necesito para un reintegro?"
+        - Cuando tiene dudas sobre qué puede solicitar.
+        - Antes de iniciar cualquier reintegro (ofrecerlo SIEMPRE).
 
-        Flujo para el LLM (estricto):
-        1) Llamar **primero** a esta herramienta con `afiliado_id` (si no lo tenés, obtenelo antes).
-        2) **Guardar** el `reintegro_id` retornado.
-        3) Llamar **una o varias veces** a `agregar_item_a_reintegro` usando ese `reintegro_id`.
-        4) Cuando haya al menos **1 ítem**, llamar a `adjuntar_documentos_a_reintegro` para pasar el caso a la UI del afiliado.
-        5) **No** llamar más herramientas después de `adjuntar_documentos_a_reintegro`: la finalización a **ENVIADO** la hace el afiliado en la UI (sube PDFs y pulsa “Enviar reintegro”).
+        Cómo comunicarlo al usuario:
+        PREGUNTÁ SIEMPRE antes de mostrar:
+        • "¿Querés que te muestre el reglamento de reintegros primero?"
+        • "¿Necesitás conocer los requisitos antes de empezar?"
+        
+        Después de mostrar el reglamento:
+        • "Acá tenés el reglamento completo de reintegros."
+        • "¿Tenés alguna duda sobre los requisitos?"
+        • "¿Querés que te ayude a iniciar tu reintegro ahora?"
+
+        Qué devuelve:
+        - El texto completo del reglamento en formato Markdown.
+        - NO mostrar detalles técnicos al usuario.
+        - Presentarlo de forma clara y legible.
+
+        Reglas para el asistente:
+        - 🔴 SIEMPRE ofrecer ver el reglamento antes de crear_reintegro.
+        - ✅ Preguntar primero, no asumir que el usuario lo quiere ver.
+        - ✅ Después de mostrarlo, esperar confirmación para continuar.
+        '''
+        try:
+            import os
+            base_dir = os.path.dirname(__file__)
+            ruta = os.path.normpath(os.path.join(base_dir, '../static/reglamento_reintegro.md'))
+            with open(ruta, 'r', encoding='utf-8') as f:
+                contenido = f.read()
+            reglamento = ReglamentoReintegro(
+                titulo="Reglamento de Reintegro",
+                contenido_md=contenido,
+                formato='md',
+                ruta_local=ruta
+            )
+            return reglamento
+        except Exception as e:
+            raise Exception(f"Error leyendo reglamento: {e}")
+
+    @mcp.tool(name="crear_reintegro")
+    async def crear_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int) -> int:
+        '''
+        Inicia un nuevo reintegro para el afiliado.
+
+        ⚠️ IMPORTANTE - Flujo OBLIGATORIO antes de ejecutar esta tool:
+        
+        1. PRIMERO: Ofrecer mostrar el reglamento
+           • "Antes de empezar, ¿querés que te muestre el reglamento de reintegros?"
+           • Si dice que sí → llamar a get_reglamento_reintegro()
+           • Si dice que no → continuar con paso 2
+        
+        2. SEGUNDO: Confirmar datos del afiliado
+           • Verificar que tenés el afiliado_id correcto
+           • Si no lo tenés, obtenerlo primero
+        
+        3. TERCERO: Crear el reintegro
+           • Llamar a esta herramienta
+           • Guardar el reintegro_id retornado
+        
+        4. DESPUÉS: Agregar ítems
+           • Llamar a agregar_item_a_reintegro (una o varias veces)
+           • Necesitás al menos 1 ítem antes de continuar
+        
+        5. FINALMENTE: Activar formulario de adjuntos
+           • Llamar a adjuntar_documentos_a_reintegro
+           • ⚠️ SOLO cuando ya haya ítems cargados
+
+        Cómo comunicarlo al usuario:
+        Antes de crear:
+        • "Perfecto, voy a iniciar tu reintegro."
+        
+        Después de crear:
+        • "Reintegro iniciado. Ahora necesito que me digas qué querés incluir."
+        • NO mostrar el reintegro_id técnico al usuario.
 
         Parámetros:
         - afiliado_id (int): ID del afiliado que solicita el reintegro.
 
         Retorna:
-        - int: `reintegro_id` recién creado.
+        - int: ID del reintegro creado (usarlo internamente, no mostrarlo).
 
-        Notas de buen uso:
-        - Idempotencia: no vuelvas a iniciar si ya tenés un `reintegro_id` activo.
-        - Estado inicial esperado: PENDIENTE.
+        Estado inicial:
+        - El reintegro queda en estado PENDIENTE.
         '''
         try:
             db = ctx.request_context.lifespan_context.db
