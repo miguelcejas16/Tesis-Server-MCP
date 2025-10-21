@@ -2,12 +2,17 @@ from mcp.server.fastmcp import FastMCP, Context
 from mcp.server.session import ServerSession
 from datetime import date
 from typing import Optional
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+root_path = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(root_path))
 
 # Importar el tipo AppContext desde server.py para anotaciones
 # Se usa 'if TYPE_CHECKING' para evitar importaciones circulares en runtime.
-from typing import TYPE_CHECKING
 
-from ...bd.baseModels import ReglamentoReintegro
+from bd.baseModels import ReglamentoReintegro
 if TYPE_CHECKING:
     from ..server import AppContext
 
@@ -23,8 +28,8 @@ def register_reintegro_tools(mcp: FastMCP):
      *   None
     '''
     
-    @mcp.tool()
-    async def get_reglamento_reintegro() -> ReglamentoReintegro:
+    @mcp.tool("iniciar_reintegro")
+    async def iniciar_reintegro() -> ReglamentoReintegro:
         '''
         Muestra el reglamento oficial de reintegros de OSEP.
 
@@ -56,10 +61,17 @@ def register_reintegro_tools(mcp: FastMCP):
         '''
         try:
             import os
+            # Obtener la ruta de este archivo (tools_reintegros.py)
+            # que está en: src/server/reintegros/tools_reintegros.py
             base_dir = os.path.dirname(__file__)
-            ruta = os.path.normpath(os.path.join(base_dir, '../static/reglamento_reintegro.md'))
+            
+            # Subir dos niveles para llegar a src/ y luego ir a static/
+            # Desde: src/server/reintegros/ -> src/server/ -> src/ -> src/static/
+            ruta = os.path.normpath(os.path.join(base_dir, '../../static/reglamento_reintegro.md'))
+            
             with open(ruta, 'r', encoding='utf-8') as f:
                 contenido = f.read()
+                
             reglamento = ReglamentoReintegro(
                 titulo="Reglamento de Reintegro",
                 contenido_md=contenido,
@@ -70,8 +82,8 @@ def register_reintegro_tools(mcp: FastMCP):
         except Exception as e:
             raise Exception(f"Error leyendo reglamento: {e}")
 
-    @mcp.tool(name="crear_reintegro")
-    async def crear_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int) -> int:
+    @mcp.tool(name="crear_reintegro_inicial")
+    async def crear_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int, cbu: int) -> int:
         '''
         Inicia un nuevo reintegro para el afiliado.
 
@@ -79,7 +91,7 @@ def register_reintegro_tools(mcp: FastMCP):
         
         1. PRIMERO: Ofrecer mostrar el reglamento
            • "Antes de empezar, ¿querés que te muestre el reglamento de reintegros?"
-           • Si dice que sí → llamar a get_reglamento_reintegro()
+           • Si dice que sí → llamar a iniciar_reintegro()
            • Si dice que no → continuar con paso 2
         
         2. SEGUNDO: Confirmar datos del afiliado
@@ -108,6 +120,7 @@ def register_reintegro_tools(mcp: FastMCP):
 
         Parámetros:
         - afiliado_id (int): ID del afiliado que solicita el reintegro.
+        - cbu (int): CBU donde se realizará el reintegro.
 
         Retorna:
         - int: ID del reintegro creado (usarlo internamente, no mostrarlo).
