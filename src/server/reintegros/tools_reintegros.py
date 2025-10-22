@@ -12,7 +12,7 @@ sys.path.insert(0, str(root_path))
 # Importar el tipo AppContext desde server.py para anotaciones
 # Se usa 'if TYPE_CHECKING' para evitar importaciones circulares en runtime.
 
-from bd.baseModels import ReglamentoReintegro
+from bd.baseModels import Reglamento
 if TYPE_CHECKING:
     from ..server import AppContext
 
@@ -29,7 +29,7 @@ def register_reintegro_tools(mcp: FastMCP):
     '''
     
     @mcp.tool("iniciar_reintegro")
-    async def iniciar_reintegro() -> ReglamentoReintegro:
+    async def iniciar_reintegro() -> Reglamento:
         '''
         Muestra el reglamento oficial de reintegros de OSEP.
 
@@ -71,8 +71,8 @@ def register_reintegro_tools(mcp: FastMCP):
             
             with open(ruta, 'r', encoding='utf-8') as f:
                 contenido = f.read()
-                
-            reglamento = ReglamentoReintegro(
+
+            reglamento = Reglamento(
                 titulo="Reglamento de Reintegro",
                 contenido_md=contenido,
                 formato='md',
@@ -83,7 +83,7 @@ def register_reintegro_tools(mcp: FastMCP):
             raise Exception(f"Error leyendo reglamento: {e}")
 
     @mcp.tool(name="crear_reintegro_inicial")
-    async def crear_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int, cbu: int) -> int:
+    async def crear_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int, cbu: str) -> int:
         '''
         Inicia un nuevo reintegro para el afiliado.
 
@@ -129,8 +129,15 @@ def register_reintegro_tools(mcp: FastMCP):
         - El reintegro queda en estado PENDIENTE.
         '''
         try:
+            # Validación simple y directa del CBU (cadena de 22 dígitos)
+            if cbu is None:
+                raise ValueError("cbu requerido")
+            cbu_clean = str(cbu).strip()
+            if not cbu_clean.isdigit() or len(cbu_clean) != 22:
+                raise ValueError("cbu inválido: debe ser una cadena de 22 dígitos")
+
             db = ctx.request_context.lifespan_context.db
-            reintegro_id = await utils_reintegros.create_temp_reintegro(db.conn, afiliado_id)
+            reintegro_id = await utils_reintegros.create_temp_reintegro(db.conn, afiliado_id, cbu)
             return reintegro_id
         except Exception as e:
             raise Exception(f"Error al iniciar reintegro: {str(e)}")

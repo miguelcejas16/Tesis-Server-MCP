@@ -30,7 +30,6 @@ async def create_temp_reintegro(
         return row['reintegro_id']
     except Exception as e:
         raise Exception(f"Error en utils.create_temp_reintegro: {e}")
-
 '''
  * Agrega un ítem (práctica o medicamento) a un reintegro existente.
  * Parámetros:
@@ -54,6 +53,26 @@ async def add_item_to_reintegro(
         monto_presentado: float,
         ) -> int:
     try:
+        # Obtener fecha_presentacion del reintegro y validar diferencia <= 60 días
+        row_reintegro = await connection.fetchrow(
+            "SELECT fecha_presentacion FROM public.reintegro WHERE reintegro_id = $1",
+            reintegro_id
+        )
+        if not row_reintegro:
+            raise ValueError("Reintegro no encontrado")
+
+        fecha_reintegro_ts = row_reintegro.get('fecha_presentacion')
+        if fecha_reintegro_ts is None:
+            raise ValueError("Fecha de presentación del reintegro no disponible")
+
+        # Normalizar a date si viene como datetime
+        fecha_reintegro_date = fecha_reintegro_ts.date() if hasattr(fecha_reintegro_ts, "date") else fecha_reintegro_ts
+
+        # Calcular diferencia en días
+        delta_days = abs((fecha_prestacion - fecha_reintegro_date).days)
+        if delta_days > 60:
+            raise ValueError("La diferencia entre fecha_presentacion del reintegro y fecha_prestacion del ítem supera los 60 días")
+
         # Mapear 'M'/'P' a los valores de la base de datos y validar
         if tipo == "M":
             tipo_db = "medicamento"
@@ -121,7 +140,7 @@ async def add_docs_reintegro(connection: asyncpg.Connection, reintegro_id: int) 
         return False
     except Exception as e:
         raise Exception(f"Error en utils.add_docs_reintegro: {e}")
-
+    
 '''
  * Lista reintegros para un afiliado dentro de un rango de fechas (inclusive).
  *

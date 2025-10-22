@@ -78,9 +78,9 @@ class Documento(BaseModel):
 Modelo simple para representar el reglamento de reintegro que se devuelve desde una herramienta.
 Se mantiene extremadamente simple: contenido en markdown y metadatos básicos.
 '''
-class ReglamentoReintegro(BaseModel):
-    """Modelo para representar el reglamento de reintegro (contenido + metadatos)"""
-    titulo: str = Field("Reglamento de Reintegro", description="Título del reglamento")
+class Reglamento(BaseModel):
+    """Modelo para representar un reglamento (contenido + metadatos)"""
+    titulo: str = Field("Reglamento", description="Título del reglamento")
     contenido_md: str = Field(..., description="Contenido completo en formato Markdown")
     formato: str = Field("md", description="Formato del documento ('md' o 'pdf')")
     ruta_local: Optional[str] = Field(None, description="Ruta local del archivo (si aplica)")

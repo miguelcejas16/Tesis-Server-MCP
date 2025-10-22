@@ -22,6 +22,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils import buscar_afiliado_por_dni, buscar_practica_por_nombre,get_practicas_cubiertas
 from bd.baseModels import Afiliado, Practica
 from reintegros.tools_reintegros import register_reintegro_tools
+from afiliaciones.tools_afiliaciones import register_afiliacion_tools
 
 # Cargar variables de entorno
 load_dotenv()
@@ -74,6 +75,7 @@ mcp = FastMCP("Obra Social Server", lifespan=app_lifespan)
 
 # Registrar herramientas de reintegros
 register_reintegro_tools(mcp)
+register_afiliacion_tools(mcp)
 
 @mcp.tool()
 async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], numero_afiliado: str, nro_doc: str) -> Optional[Afiliado]:
