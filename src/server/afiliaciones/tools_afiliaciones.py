@@ -26,7 +26,7 @@ def register_afiliacion_tools(mcp: FastMCP):
     @mcp.tool("iniciar_afiliacion")
     async def iniciar_afiliacion() -> Reglamento:
         '''
-        Muestra el reglamento oficial de afiliaciones de OSEP.
+        Muestra el reglamento oficial de afiliaciones de la obra social MCP.
 
         Cuándo usarla:
         - Cuando el usuario menciona "afiliarme" o "afiliación" por primera vez.
@@ -100,20 +100,28 @@ def register_afiliacion_tools(mcp: FastMCP):
            • Pedir todos los datos requeridos
            • Validar que estén completos
         
-        3. TERCERO: Crear la afiliación
-           • Llamar a esta herramienta
-           • Guardar el afiliacion_id retornado
+        3. TERCERO: MOSTRAR RESUMEN Y PEDIR CONFIRMACIÓN FINAL
+           • Mostrar TODOS los datos ingresados de forma clara
+           • "Revisá tus datos antes de confirmar:"
+           • Listar todos los datos completos
+           • "⚠️ IMPORTANTE: Una vez confirmado, NO se pueden modificar los datos."
+           • "¿Confirmás que todos los datos son correctos y querés crear la solicitud?"
+           • ESPERAR confirmación explícita del usuario
         
-        4. FINALMENTE: Activar formulario de adjuntos
+        4. CUARTO: Crear la afiliación
+           • SOLO después de la confirmación → llamar a esta herramienta
+           • Guardar el afiliacion_id retornado y muestraselo al usuario, pidiendo que lo recuerde y lo anote en algun lugar.
+        
+        5. FINALMENTE: Activar formulario de adjuntos
            • Llamar a adjuntar_documentos_a_afiliacion
            • ⚠️ SOLO cuando todos los datos estén completos
 
         Cómo comunicarlo al usuario:
         Antes de crear:
-        • "Perfecto, voy a iniciar tu solicitud de afiliación."
+        • "Perfecto, voy a crear tu solicitud de afiliación con los datos confirmados."
         
         Después de crear:
-        • "Solicitud iniciada. Ahora necesitás adjuntar la documentación requerida."
+        • "✅ Solicitud creada exitosamente. Ahora necesitás adjuntar la documentación requerida."
         • NO mostrar el afiliacion_id técnico al usuario.
 
         Parámetros:
@@ -210,30 +218,25 @@ def register_afiliacion_tools(mcp: FastMCP):
         except Exception as e:
             raise Exception(f"Error en tool.adjuntar_documentos_a_afiliacion: {e}")
         
-    @mcp.tool(name="listar_afiliaciones")
-    async def listar_afiliaciones(
+    @mcp.tool(name="mostrar_afiliacion")
+    async def mostrar_afiliacion(
         ctx: Context[ServerSession, "AppContext"],
-        fecha_desde: date,
-        fecha_hasta: date
+        afiliacion_id: int,
+        dni: int
     ) -> str:
         '''
-        Lista afiliaciones dentro de un rango de fechas (inclusive).
+        Muestra los detalles de una afiliación específica.
 
         Instrucciones para el LLM que use esta herramienta:
-        - Pedir siempre al usuario el RANGO de fechas en formato YYYY-MM-DD:
-          "Por favor indicá fecha desde (YYYY-MM-DD) y fecha hasta (YYYY-MM-DD)."
-        - Si el usuario NO puede dar un rango pero aporta UNA fecha estimada,
-          pedir: "Si solo tenés una fecha estimada, indicámela (YYYY-MM-DD) y yo usaré ese día ±5 días."
-          En ese caso construir el rango automáticamente restando 5 días a la fecha estimada para fecha_desde
-          y sumando 5 días para fecha_hasta.
-        - Validar el formato de la(s) fecha(s) antes de llamar a la tool.
-        - Confirmar con el usuario el rango final que se usará:
-          "Voy a buscar afiliaciones desde {fecha_desde} hasta {fecha_hasta}. ¿Continuo?"
-        - Solo llamar esta herramienta cuando el usuario confirme el rango.
+        - Pedir siempre al usuario el ID de la afiliación y el DNI en formato numérico.
+        - Validar el formato de los parámetros antes de llamar a la tool.
+        - Confirmar con el usuario el ID y DNI que se usarán:
+          "Voy a buscar la afiliación con ID {afiliacion_id} y DNI {dni}. ¿Continuo?"
+        - Solo llamar esta herramienta cuando el usuario confirme los parámetros.
 
         Parámetros:
-        - fecha_desde (date): Fecha inicial (inclusive).
-        - fecha_hasta (date): Fecha final (inclusive).
+        - afiliacion_id (int): ID de la afiliación.
+        - dni (int): DNI del afiliado.
 
         Retorna:
         - str: JSON con la lista de afiliaciones y sus detalles.
@@ -248,8 +251,8 @@ def register_afiliacion_tools(mcp: FastMCP):
             from datetime import date, datetime
 
             db = ctx.request_context.lifespan_context.db
-            afiliaciones = await utils_afiliaciones.list_afiliaciones_por_rango(
-                db.conn, fecha_desde, fecha_hasta
+            afiliaciones = await utils_afiliaciones.list_afiliaciones_por_id_y_dni(
+                db.conn, afiliacion_id, dni
             )
 
             def _serial(obj):

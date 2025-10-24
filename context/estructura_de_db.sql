@@ -130,3 +130,21 @@ CREATE TRIGGER tr_documento_afiliacion_set_actualizado_en
 BEFORE UPDATE ON public.documentos_afiliacion
 FOR EACH ROW
 EXECUTE FUNCTION tg_set_actualizado_en();
+
+-- public.practica definition
+CREATE TABLE public.practica (
+	practica_id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
+	codigo text NOT NULL,
+	nombre text NOT NULL,
+	requiere_autorizacion int4 DEFAULT 0 NULL,
+	CONSTRAINT practica_codigo_key UNIQUE (codigo),
+	CONSTRAINT practica_pkey PRIMARY KEY (practica_id)
+);
+
+-- public.medicamento definition
+CREATE TABLE public.medicamento (
+	medicamento_id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
+	principio_activo text NOT NULL,
+	marca text NULL,
+	CONSTRAINT medicamento_pkey PRIMARY KEY (medicamento_id)
+);

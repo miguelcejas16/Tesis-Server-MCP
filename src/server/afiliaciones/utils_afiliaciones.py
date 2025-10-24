@@ -48,10 +48,13 @@ async def create_afiliacion(
             domicilio_numero, localidad, provincia, telefono, email,
             tipo_afiliado
         )
-        if not row:
-            raise Exception("No se pudo crear la afiliación.")
+
         return row['id']
+    
     except Exception as e:
+        # Capturar error específico de DNI duplicado
+        if "uk_afiliacion_dni" in str(e) or "duplicate key" in str(e).lower():
+            raise Exception(f"Ya existe una afiliación para el DNI {dni}. No se puede crear otra.")
         raise Exception(f"Error en utils.create_afiliacion: {e}")
 
 '''
@@ -114,3 +117,34 @@ async def list_afiliaciones_por_rango(
         return [dict(r) for r in rows]
     except Exception as e:
         raise Exception(f"Error en utils.list_afiliaciones_por_rango: {e}")
+
+'''
+Busca afiliaciones por ID de afiliación y DNI juntos.
+Requiere ambos parámetros; si falta alguno lanza excepción.
+Parámetros:
+  connection (asyncpg.Connection) — Conexión a la base de datos.
+  afiliacion_id (int) — ID de la afiliación.
+  dni (int) — DNI del afiliado.
+Retorna:
+  List[dict] — Lista de afiliaciones que coinciden.
+'''
+async def list_afiliaciones_por_id_y_dni(
+    connection: asyncpg.Connection,
+    afiliacion_id: int,
+    dni: int,
+) -> List[dict]:
+    try:
+        if afiliacion_id is None or dni is None:
+            raise Exception("Se requieren 'afiliacion_id' y 'dni' para la búsqueda conjunta.")
+        query = """
+            SELECT id, nombre_apellido, dni, fecha_nacimiento, domicilio_calle,
+                   domicilio_numero, localidad, provincia, telefono, email,
+                   tipo_afiliado, estado, adjuntos_confirmados
+            FROM public.afiliacion
+            WHERE id = $1 AND dni = $2
+            ORDER BY id DESC
+        """
+        rows = await connection.fetch(query, afiliacion_id, dni)
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise Exception(f"Error en utils.list_afiliaciones_por_id_y_dni: {e}")

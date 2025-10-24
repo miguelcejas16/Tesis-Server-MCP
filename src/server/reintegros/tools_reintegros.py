@@ -31,7 +31,7 @@ def register_reintegro_tools(mcp: FastMCP):
     @mcp.tool("iniciar_reintegro")
     async def iniciar_reintegro() -> Reglamento:
         '''
-        Muestra el reglamento oficial de reintegros de OSEP.
+        Muestra el reglamento oficial de reintegros de la obra social MCP.
 
         Cuándo usarla:
         - Cuando el afiliado menciona "reintegro" por primera vez.
@@ -158,6 +158,8 @@ def register_reintegro_tools(mcp: FastMCP):
         Descripción:
         - Inserta un ítem en el reintegro creado con `iniciar_reintegro`.
         - Podés llamar esta herramienta varias veces para cargar múltiples ítems.
+
+        OBLIGATORIO - Avisar al usuario que tenga cuidado con los items que carga porque no hay vuelta atras.
 
         Flujo para el LLM (estricto):
         1) Asegurate de tener `reintegro_id` (devuelto por `iniciar_reintegro`).
@@ -369,3 +371,30 @@ def register_reintegro_tools(mcp: FastMCP):
         except Exception as e:
             raise Exception(f"Error en tool.generar_nota_reintegro: {e}")
 
+    @mcp.tool(name="obtener_reintegro_por_id")
+    async def obtener_reintegro_por_id(
+        ctx: Context[ServerSession, "AppContext"],
+        reintegro_id: int
+    ) -> str:
+        '''
+        Obtiene los detalles completos de un reintegro por su ID.
+
+        Parámetros:
+        - reintegro_id (int): ID del reintegro a consultar.
+
+        Retorna:
+        - str: JSON con todos los detalles del reintegro, incluyendo ítems y estado.
+
+        Notas:
+        - Útil para verificar el estado actual del reintegro.
+        - Si no se encuentra el reintegro, retorna un error descriptivo.
+        '''
+        try:
+            import json
+            db = ctx.request_context.lifespan_context.db
+            reintegro = await utils_reintegros.get_reintegro_por_id(db.conn, reintegro_id)
+            if not reintegro:
+                raise Exception(f"No se encontró el reintegro con ID {reintegro_id}")
+            return json.dumps(reintegro)
+        except Exception as e:
+            raise Exception(f"Error al obtener reintegro por ID: {str(e)}")

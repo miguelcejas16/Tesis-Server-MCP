@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional, Literal, List
 import asyncpg
 
@@ -175,3 +176,77 @@ async def list_reintegros_por_afiliado_y_rango(
         return [dict(r) for r in rows]
     except Exception as e:
         raise Exception(f"Error en utils.list_reintegros_por_afiliado_y_rango: {e}")
+
+'''
+Obtiene un reintegro por su ID junto con sus ítems asociados.
+Incluye información de práctica (nombre) o medicamento (principio_activo, marca)
+según corresponda al tipo del ítem.
+Parámetros:
+  connection (asyncpg.Connection) — Conexión a la base de datos.
+  reintegro_id (int) — ID del reintegro a buscar.
+Retorna:
+  Optional[dict] — Diccionario con los datos del reintegro y una clave 'items' con la lista de ítems;
+                   None si no se encuentra el reintegro.
+'''
+async def get_reintegro_por_id(
+    connection: asyncpg.Connection,
+    reintegro_id: int
+) -> Optional[dict]:
+    try:
+        # Obtener el reintegro principal
+        query_reintegro = """
+            SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado,
+                   fecha_presentacion, observaciones, cbu, adjuntos_confirmados
+            FROM public.reintegro
+            WHERE reintegro_id = $1
+        """
+        row = await connection.fetchrow(query_reintegro, reintegro_id)
+        if not row:
+            return None
+
+        # Convertir fila a dict y hacer valores JSON-safe (Decimal -> float, datetime/date -> ISO)
+        def _json_safe_value(v):
+            if isinstance(v, Decimal):
+                return float(v)
+            if isinstance(v, datetime) or isinstance(v, date):
+                return v.isoformat()
+            return v
+
+        reintegro = {k: _json_safe_value(v) for k, v in dict(row).items()}
+
+        # Obtener los items asociados al reintegro, incluyendo datos de practica/medicamento
+        query_items = """
+            SELECT ri.item_id,
+                   ri.reintegro_id,
+                   ri.tipo,
+                   ri.practica_id,
+                   p.nombre AS practica_nombre,
+                   ri.medicamento_id,
+                   m.principio_activo AS medicamento_principio_activo,
+                   m.marca AS medicamento_marca,
+                   ri.fecha_prestacion,
+                   ri.monto_presentado,
+                   ri.monto_aprobado,
+                   ri.cobertura_aplicada,
+                   ri.copago,
+                   ri.prestador_txt,
+                   ri.comprobante_txt
+            FROM public.reintegro_item ri
+            LEFT JOIN public.practica p ON ri.practica_id = p.practica_id
+            LEFT JOIN public.medicamento m ON ri.medicamento_id = m.medicamento_id
+            WHERE ri.reintegro_id = $1
+            ORDER BY ri.fecha_prestacion, ri.item_id
+        """
+        items_rows = await connection.fetch(query_items, reintegro_id)
+
+        items = []
+        for r in items_rows:
+            item = {k: _json_safe_value(v) for k, v in dict(r).items()}
+            items.append(item)
+
+        # Agregar la lista de items al dict del reintegro
+        reintegro['items'] = items
+
+        return reintegro
+    except Exception as e:
+        raise Exception(f"Error en utils.get_reintegro_por_id: {e}")
