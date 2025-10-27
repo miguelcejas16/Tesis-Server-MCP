@@ -148,3 +148,21 @@ CREATE TABLE public.medicamento (
 	marca text NULL,
 	CONSTRAINT medicamento_pkey PRIMARY KEY (medicamento_id)
 );
+
+CREATE TABLE public.comunicacion (
+    nota_id SERIAL PRIMARY KEY,
+    tipo TEXT NOT NULL CHECK (tipo IN ('AGRADECIMIENTO', 'SUGERENCIA', 'RECLAMO')),
+    asunto TEXT,
+    descripcion TEXT NOT NULL,
+    lugar TEXT,
+    fecha_evento DATE,
+    resultado_deseado TEXT,
+    afiliado_id INT NOT NULL,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT nota_afiliado_fkey FOREIGN KEY (afiliado_id)
+        REFERENCES public.afiliado (afiliado_id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+CREATE INDEX idx_comunicacion_tipo ON public.comunicacion (tipo);
+CREATE INDEX idx_comunicacion_afiliado ON public.comunicacion (afiliado_id);

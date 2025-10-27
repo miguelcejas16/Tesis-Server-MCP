@@ -86,6 +86,7 @@ async def add_item_to_reintegro(
         else:
             raise ValueError("El valor de 'tipo' debe ser 'M' o 'P'")
 
+        # Insertar el ítem y actualizar el total del reintegro dentro de una transacción simple
         query = """
             INSERT INTO public.reintegro_item (
                 reintegro_id, tipo, practica_id, medicamento_id, 
@@ -94,16 +95,27 @@ async def add_item_to_reintegro(
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING item_id
         """
-        result = await connection.fetchrow(
-            query,
-            reintegro_id, tipo_db, practica_id, medicamento_id,
-            fecha_prestacion, monto_presentado
-        )
 
-        if result:
-            return result['item_id']
-        else:
-            raise Exception("No se pudo agregar el ítem y obtener el ID.")
+        async with connection.transaction():
+            result = await connection.fetchrow(
+                query,
+                reintegro_id, tipo_db, practica_id, medicamento_id,
+                fecha_prestacion, monto_presentado
+            )
+
+            if not result:
+                raise Exception("No se pudo agregar el ítem y obtener el ID.")
+
+            item_id = result['item_id']
+
+            # Usar Decimal para sumar con precisión
+            monto_dec = Decimal(str(monto_presentado))
+            await connection.execute(
+                "UPDATE public.reintegro SET total_presentado = COALESCE(total_presentado, 0::numeric) + $1 WHERE reintegro_id = $2",
+                monto_dec, reintegro_id
+            )
+
+        return item_id
     except Exception as e:
         raise Exception(f"Error en utils.add_item_to_reintegro: {e}")
 
