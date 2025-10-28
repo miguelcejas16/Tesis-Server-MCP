@@ -24,6 +24,7 @@ from bd.baseModels import Afiliado, Practica
 from reintegros.tools_reintegros import register_reintegro_tools
 from afiliaciones.tools_afiliaciones import register_afiliacion_tools
 from comunicaciones.tools_comunicaciones import register_comunicacion_tools
+from consultas.tools_consultas import register_consulta_tools
 
 # Cargar variables de entorno
 load_dotenv()
@@ -78,6 +79,7 @@ mcp = FastMCP("Obra Social Server", lifespan=app_lifespan)
 register_reintegro_tools(mcp)
 register_afiliacion_tools(mcp)
 register_comunicacion_tools(mcp)
+register_consulta_tools(mcp)
 
 @mcp.tool()
 async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], numero_afiliado: str, nro_doc: str) -> Optional[Afiliado]:

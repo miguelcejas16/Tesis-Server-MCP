@@ -1,4 +1,3 @@
-# ...existing code...
 '''
 Plan simple:
 - Proveer dos utilidades sencillas para la tabla "comunicacion":
@@ -10,91 +9,92 @@ Plan simple:
 
 import datetime
 from typing import List, Optional, Dict, Any
-import asyncpg
 
 '''
-Función sencilla para convertir filas de asyncpg (Record) a diccionarios.
+Función sencilla para convertir filas de cursor a diccionarios.
 '''
-def _records_to_dicts(rows: List[asyncpg.Record]) -> List[Dict[str, Any]]:
-    return [dict(r) for r in rows]
+def _rows_to_dicts(cursor) -> List[Dict[str, Any]]:
+    cols = [c[0] for c in cursor.description] if cursor.description else []
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
 '''
-Fetch comunicaciones buscando por numero de afiliado y rango de fechas.
-La búsqueda ENTRE fechas es obligatoria (fecha_desde y fecha_hasta).
-Opcional: filtrar por nota_id.
+Fetch comunicaciones desde la base de datos.
 
-Parámetros:
-- connection: asyncpg.Connection ya abierta.
-- numero_afiliado: cadena con el número de afiliado (bpchar(8) en la BD).
-- fecha_desde: fecha inicio (inclusive) tipo datetime.date (obligatorio).
-- fecha_hasta: fecha fin (inclusive) tipo datetime.date (obligatorio).
-- nota_id: filtrar por nota_id opcional.
+Parametros:
+- conn: conexión psycopg2 (o similar) ya abierta.
+- tipo: filtrar por tipo ('AGRADECIMIENTO','SUGERENCIA','RECLAMO') opcional.
+- afiliado_id: filtrar por afiliado_id opcional.
+- limit: número máximo de filas a devolver (por defecto 100).
+- offset: desplazamiento para paginación (por defecto 0).
 
 Retorna: lista de diccionarios con las filas obtenidas.
+Ejemplo:
+  filas = fetch_comunicaciones(conn, tipo='RECLAMO', limit=10)
 '''
-async def fetch_comunicaciones_por_numero_y_rango(
-        connection: asyncpg.Connection,
-        numero_afiliado: str,
-        fecha_desde: datetime.date,
-        fecha_hasta: datetime.date,
-        nota_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-
-    if not numero_afiliado:
-        raise ValueError("numero_afiliado es requerido")
-    if fecha_desde is None or fecha_hasta is None:
-        raise ValueError("fecha_desde y fecha_hasta son obligatorios")
-
-    # Consulta simple y clara. No limit/offset según requerimiento.
-    sql_base = """
-    SELECT c.nota_id, c.tipo, c.asunto, c.descripcion, c.lugar, c.fecha_evento,
-           c.resultado_deseado, c.afiliado_id, a.numero_afiliado, c.creado_en
-    FROM public.comunicacion c
-    JOIN public.afiliado a ON a.afiliado_id = c.afiliado_id
-    WHERE a.numero_afiliado = $1
-      AND c.creado_en::date BETWEEN $2 AND $3
+def fetch_comunicaciones(conn, tipo: Optional[str] = None, afiliado_id: Optional[int] = None,
+                        limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    sql = """
+    SELECT nota_id, tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado,
+           afiliado_id, creado_en
+    FROM public.comunicacion
+    WHERE 1=1
     """
-    params = [numero_afiliado, fecha_desde, fecha_hasta]
+    params = []
+    if tipo:
+        sql += " AND tipo = %s"
+        params.append(tipo)
+    if afiliado_id:
+        sql += " AND afiliado_id = %s"
+        params.append(afiliado_id)
+    sql += " ORDER BY creado_en DESC LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
 
-    if nota_id is not None:
-        sql_base += " AND c.nota_id = $4"
-        params.append(nota_id)
-
-    sql_base += " ORDER BY c.creado_en DESC"
-
+    cur = conn.cursor()
     try:
-        rows = await connection.fetch(sql_base, *params)
-        return _records_to_dicts(rows)
-    except Exception as e:
-        raise Exception(f"Error en fetch_comunicaciones_por_numero_y_rango: {e}")
+        cur.execute(sql, tuple(params))
+        rows = _rows_to_dicts(cur)
+        return rows
+    finally:
+        cur.close()
 
 '''
-Insertar una nueva comunicación en la tabla (asyncpg).
-Retorna el nota_id creado.
-'''
-async def insert_comunicacion(
-        connection: asyncpg.Connection,
-        tipo: str,
-        descripcion: str,
-        afiliado_id: int,
-        asunto: Optional[str] = None,
-        lugar: Optional[str] = None,
-        fecha_evento: Optional[datetime.date] = None,
-        resultado_deseado: Optional[str] = None
-    ) -> int:
+Insertar una nueva comunicación en la tabla.
 
+Parametros:
+- conn: conexión psycopg2 (o similar) ya abierta.
+- tipo: obligatorio ('AGRADECIMIENTO','SUGERENCIA','RECLAMO').
+- descripcion: obligatorio.
+- afiliado_id: obligatorio.
+- asunto, lugar, fecha_evento, resultado_deseado: opcionales.
+
+Retorna: nota_id (int) del registro insertado.
+Ejemplo:
+  nid = insert_comunicacion(conn, 'SUGERENCIA', 'Texto...', 12, asunto='Tema')
+'''
+def insert_comunicacion(conn,
+                        tipo: str,
+                        descripcion: str,
+                        afiliado_id: int,
+                        asunto: Optional[str] = None,
+                        lugar: Optional[str] = None,
+                        fecha_evento: Optional[datetime.date] = None,
+                        resultado_deseado: Optional[str] = None) -> int:
     sql = """
     INSERT INTO public.comunicacion
       (tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado, afiliado_id)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
     RETURNING nota_id
     """
     params = (tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado, afiliado_id)
 
+    cur = conn.cursor()
     try:
-        row = await connection.fetchrow(sql, *params)
-        if not row:
-            raise Exception("No se pudo insertar la comunicación")
-        return row["nota_id"]
-    except Exception as e:
-        raise Exception(f"Error en insert_comunicacion: {e}")
+        cur.execute(sql, params)
+        nota_id = cur.fetchone()[0]
+        conn.commit()
+        return nota_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()

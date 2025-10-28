@@ -166,3 +166,41 @@ CREATE TABLE public.comunicacion (
 );
 CREATE INDEX idx_comunicacion_tipo ON public.comunicacion (tipo);
 CREATE INDEX idx_comunicacion_afiliado ON public.comunicacion (afiliado_id);
+
+CREATE TABLE tope_practica (
+  tope_id SERIAL PRIMARY KEY,
+  plan_id INT REFERENCES plan(plan_id),
+  practica_id INT REFERENCES practica(practica_id),
+  unidades_max INT NOT NULL,
+  periodo TEXT CHECK (periodo IN ('mensual','anual')) NOT NULL
+);
+
+CREATE TABLE cobertura_practica (
+  plan_id INT REFERENCES plan(plan_id),
+  practica_id INT REFERENCES practica(practica_id),
+  porcentaje NUMERIC(5,2) NOT NULL,
+  copago NUMERIC(12,2) DEFAULT 0,
+  requiere_autorizacion BOOLEAN DEFAULT FALSE,
+  requiere_derivacion BOOLEAN DEFAULT FALSE,
+  PRIMARY KEY (plan_id, practica_id)
+);
+
+CREATE TABLE public.cobertura_practica (
+	plan_id int4 NOT NULL,
+	practica_id int4 NOT NULL,
+	porcentaje numeric(5, 2) NOT NULL,
+	copago numeric(12, 2) DEFAULT 0 NULL,
+	CONSTRAINT cobertura_practica_pkey PRIMARY KEY (plan_id, practica_id)
+);
+ALTER TABLE public.cobertura_practica ADD CONSTRAINT cobertura_practica_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public."plan"(plan_id) ON DELETE CASCADE;
+ALTER TABLE public.cobertura_practica ADD CONSTRAINT cobertura_practica_practica_id_fkey FOREIGN KEY (practica_id) REFERENCES public.practica(practica_id) ON DELETE CASCADE;
+
+CREATE TABLE public.cobertura_medicamento (
+	plan_id int4 NOT NULL,
+	medicamento_id int4 NOT NULL,
+	porcentaje numeric(5, 2) NOT NULL,
+	copago numeric(12, 2) DEFAULT 0 NULL,
+	CONSTRAINT cobertura_medicamento_pkey PRIMARY KEY (plan_id, medicamento_id)
+);
+ALTER TABLE public.cobertura_medicamento ADD CONSTRAINT cobertura_medicamento_medicamento_id_fkey FOREIGN KEY (medicamento_id) REFERENCES public.medicamento(medicamento_id) ON DELETE CASCADE;
+ALTER TABLE public.cobertura_medicamento ADD CONSTRAINT cobertura_medicamento_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public."plan"(plan_id) ON DELETE CASCADE;
