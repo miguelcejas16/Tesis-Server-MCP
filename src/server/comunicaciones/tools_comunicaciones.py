@@ -149,7 +149,8 @@ def register_comunicacion_tools(mcp: FastMCP):
         - Luego, redacta la descripción final combinando la información recopilada
         en un texto coherente, formal y claro, apto para registrar como comunicación oficial.
         - Finalmente, llama a esta tool pasando todos los parámetros completos.
-
+        - AL FINAL, informa al afiliado que su situación ha sido registrada exitosamente.
+        
         Parámetros:
         - tipo (str): "AGRADECIMIENTO", "SUGERENCIA" o "RECLAMO".
         - descripcion (str): Texto redactado final de la comunicación.
