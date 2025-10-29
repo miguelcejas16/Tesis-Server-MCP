@@ -175,16 +175,6 @@ CREATE TABLE tope_practica (
   periodo TEXT CHECK (periodo IN ('mensual','anual')) NOT NULL
 );
 
-CREATE TABLE cobertura_practica (
-  plan_id INT REFERENCES plan(plan_id),
-  practica_id INT REFERENCES practica(practica_id),
-  porcentaje NUMERIC(5,2) NOT NULL,
-  copago NUMERIC(12,2) DEFAULT 0,
-  requiere_autorizacion BOOLEAN DEFAULT FALSE,
-  requiere_derivacion BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (plan_id, practica_id)
-);
-
 CREATE TABLE public.cobertura_practica (
 	plan_id int4 NOT NULL,
 	practica_id int4 NOT NULL,

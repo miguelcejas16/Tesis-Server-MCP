@@ -112,7 +112,7 @@ def register_consulta_tools(mcp: FastMCP):
         - afiliado_id (int): ID del afiliado.
         - practica_id (int): ID de la práctica.
         - fecha_ref (date): Fecha de referencia (YYYY-MM-DD).
-        - periodo (str): 'mensual' o 'anual'.
+        - periodo (str): siempre 'mensual'.
 
         Retorna:
         - str: JSON con unidades_max, consumido, disponible, periodo_desde, periodo_hasta.
