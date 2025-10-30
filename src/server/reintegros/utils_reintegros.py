@@ -214,7 +214,7 @@ async def get_reintegro_por_id(
         """
         row = await connection.fetchrow(query_reintegro, reintegro_id)
         if not row:
-            return None
+            return [] # Reintegro no encontrado
 
         # Convertir fila a dict y hacer valores JSON-safe (Decimal -> float, datetime/date -> ISO)
         def _json_safe_value(v):

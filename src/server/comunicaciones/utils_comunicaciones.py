@@ -9,19 +9,19 @@ Plan simple:
 
 import datetime
 from typing import List, Optional, Dict, Any
+import asyncpg
 
 '''
-Función sencilla para convertir filas de cursor a diccionarios.
+Función sencilla para convertir asyncpg.Record a diccionarios.
 '''
-def _rows_to_dicts(cursor) -> List[Dict[str, Any]]:
-    cols = [c[0] for c in cursor.description] if cursor.description else []
-    return [dict(zip(cols, row)) for row in cursor.fetchall()]
+def _records_to_dicts(records) -> List[Dict[str, Any]]:
+    return [dict(r) for r in records]
 
 '''
-Fetch comunicaciones desde la base de datos.
+Fetch comunicaciones desde la base de datos usando asyncpg.
 
 Parametros:
-- conn: conexión psycopg2 (o similar) ya abierta.
+- conn: conexión asyncpg.Connection ya abierta.
 - tipo: filtrar por tipo ('AGRADECIMIENTO','SUGERENCIA','RECLAMO') opcional.
 - afiliado_id: filtrar por afiliado_id opcional.
 - limit: número máximo de filas a devolver (por defecto 100).
@@ -29,33 +29,38 @@ Parametros:
 
 Retorna: lista de diccionarios con las filas obtenidas.
 Ejemplo:
-  filas = fetch_comunicaciones(conn, tipo='RECLAMO', limit=10)
+  filas = await fetch_comunicaciones(conn, tipo='RECLAMO', limit=10)
 '''
-def fetch_comunicaciones(conn, tipo: Optional[str] = None, afiliado_id: Optional[int] = None,
-                        limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+async def fetch_comunicaciones(
+    conn: asyncpg.Connection,
+    tipo: Optional[str] = None,
+    afiliado_id: Optional[int] = None,
+    limit: int = 100,
+    offset: int = 0
+) -> List[Dict[str, Any]]:
     sql = """
     SELECT nota_id, tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado,
            afiliado_id, creado_en
     FROM public.comunicacion
     WHERE 1=1
     """
-    params = []
+    params: List[Any] = []
+    # construir condiciones con placeholders $1, $2, ...
+    next_idx = 1
     if tipo:
-        sql += " AND tipo = %s"
+        sql += f" AND tipo = ${next_idx}"
         params.append(tipo)
-    if afiliado_id:
-        sql += " AND afiliado_id = %s"
+        next_idx += 1
+    if afiliado_id is not None:
+        sql += f" AND afiliado_id = ${next_idx}"
         params.append(afiliado_id)
-    sql += " ORDER BY creado_en DESC LIMIT %s OFFSET %s"
+        next_idx += 1
+
+    sql += f" ORDER BY creado_en DESC LIMIT ${next_idx} OFFSET ${next_idx + 1}"
     params.extend([limit, offset])
 
-    cur = conn.cursor()
-    try:
-        cur.execute(sql, tuple(params))
-        rows = _rows_to_dicts(cur)
-        return rows
-    finally:
-        cur.close()
+    rows = await conn.fetch(sql, *params)
+    return _records_to_dicts(rows)
 
 '''
 Insertar una nueva comunicación en la tabla.
@@ -71,30 +76,31 @@ Retorna: nota_id (int) del registro insertado.
 Ejemplo:
   nid = insert_comunicacion(conn, 'SUGERENCIA', 'Texto...', 12, asunto='Tema')
 '''
-def insert_comunicacion(conn,
-                        tipo: str,
-                        descripcion: str,
-                        afiliado_id: int,
-                        asunto: Optional[str] = None,
-                        lugar: Optional[str] = None,
-                        fecha_evento: Optional[datetime.date] = None,
-                        resultado_deseado: Optional[str] = None) -> int:
-    sql = """
-    INSERT INTO public.comunicacion
-      (tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado, afiliado_id)
-    VALUES (%s, %s, %s, %s, %s, %s, %s)
-    RETURNING nota_id
-    """
-    params = (tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado, afiliado_id)
+import datetime
+from typing import Optional
+import asyncpg
 
-    cur = conn.cursor()
-    try:
-        cur.execute(sql, params)
-        nota_id = cur.fetchone()[0]
-        conn.commit()
-        return nota_id
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        cur.close()
+# Si recibes una CONEXIÓN asyncpg ya abierta
+async def insert_comunicacion(
+    conn: asyncpg.Connection,
+    tipo: str,
+    descripcion: str,
+    afiliado_id: int,
+    asunto: Optional[str] = None,
+    lugar: Optional[str] = None,
+    fecha_evento: Optional[datetime.date] = None,
+    resultado_deseado: Optional[str] = None,
+) -> int:
+    sql = """
+        INSERT INTO public.comunicacion
+            (tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado, afiliado_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING nota_id
+    """
+    async with conn.transaction():
+        row = await conn.fetchrow(
+            sql,
+            tipo, asunto, descripcion, lugar, fecha_evento, resultado_deseado, afiliado_id
+        )
+        # row es un asyncpg.Record; puedes indexar por nombre o por posición
+        return row["nota_id"]

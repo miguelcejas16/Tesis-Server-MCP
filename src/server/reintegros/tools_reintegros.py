@@ -393,8 +393,6 @@ def register_reintegro_tools(mcp: FastMCP):
             import json
             db = ctx.request_context.lifespan_context.db
             reintegro = await utils_reintegros.get_reintegro_por_id(db.conn, reintegro_id)
-            if not reintegro:
-                raise Exception(f"No se encontró el reintegro con ID {reintegro_id}")
             return json.dumps(reintegro)
         except Exception as e:
             raise Exception(f"Error al obtener reintegro por ID: {str(e)}")

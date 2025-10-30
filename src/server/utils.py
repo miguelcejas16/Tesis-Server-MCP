@@ -34,10 +34,8 @@ async def buscar_practica_por_nombre(connection, nombre: str) -> Optional[List[P
         """
         result = await connection.fetch(query, f"%{nombre}%")
         
-        if result:
-            return [Practica(**dict(row)) for row in result]
-        else:
-            return None
+        return [Practica(**dict(row)) for row in result] if result else []
+    
     except Exception as e:
         raise Exception(f"Error en utils.buscar_practica_por_nombre: {e}")
     
