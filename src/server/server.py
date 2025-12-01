@@ -81,22 +81,112 @@ register_afiliacion_tools(mcp)
 register_comunicacion_tools(mcp)
 register_consulta_tools(mcp)
 
+# @mcp.tool()
+# async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], numero_afiliado: str, nro_doc: str) -> Optional[Afiliado]:
+#     """
+#     Busca un afiliado por tipo y número de documento
+#     Args:
+#         numero_afiliado (str): Número de afiliado
+#         nro_doc (str): Número de documento
+#     Returns:
+#         Datos del afiliado, incluyendo su plan_id
+#     """
+#     try:
+#         db = ctx.request_context.lifespan_context.db
+#         resultado = await buscar_afiliado_por_dni(db.conn, numero_afiliado, nro_doc)
+#         return resultado
+#     except Exception as e:
+#         raise Exception(f"Error al buscar afiliado: {str(e)}")
+
 @mcp.tool()
-async def afiliado_por_dni(ctx: Context[ServerSession, AppContext], numero_afiliado: str, nro_doc: str) -> Optional[Afiliado]:
+async def solicitar_codigo_afiliado(ctx: Context[ServerSession, AppContext], numero_afiliado: str, nro_doc: str) -> str:
     """
-    Busca un afiliado por tipo y número de documento
+    PASO 1: Solicita un código OTP para validar la identidad del afiliado.
+    
+    Esta es la PRIMERA herramienta que debes usar cuando el usuario pida ver sus datos o tu necesites los datos del afiliado.
+    
+    Flujo para el LLM:
+    1. Cuando el usuario pida "ver mis datos", "mi cobertura", "mis reintegros", etc.
+    2. PRIMERO pide al usuario su número de afiliado y número de documento.
+    3. Llama a esta herramienta con esos datos.
+    4. Informa al usuario: "Te envié un código de 6 dígitos al email registrado. Por favor, escribí el código aquí."
+    5. Espera a que el usuario proporcione el código.
+    6. Luego usa la herramienta 'datos_afiliado_verificados' con el código.
+    
     Args:
         numero_afiliado (str): Número de afiliado
         nro_doc (str): Número de documento
+    
     Returns:
-        Datos del afiliado, incluyendo su plan_id
+        str: Mensaje confirmando que se envió el código por email
     """
     try:
+        from utils import generar_codigo_otp, guardar_otp, enviar_email
+        
         db = ctx.request_context.lifespan_context.db
-        resultado = await buscar_afiliado_por_dni(db.conn, numero_afiliado, nro_doc)
-        return resultado
+        
+        # 1. Verificar que el afiliado existe
+        afiliado = await buscar_afiliado_por_dni(db.conn, numero_afiliado, nro_doc)
+        if not afiliado:
+            return "No se encontró un afiliado con esos datos"
+        
+        # 2. Generar código OTP
+        codigo = generar_codigo_otp()
+        
+        # 3. Guardar el código en la base de datos
+        await guardar_otp(db.conn, numero_afiliado, nro_doc, codigo)
+        
+        # 4. Enviar código por email
+        asunto = "Código de verificación - Obra Social"
+        cuerpo = f"Hola {afiliado.nombre},\n\nTu código de verificación es: {codigo}\n\nEste código expira en 5 minutos."
+        enviar_email(afiliado.email, asunto, cuerpo)
+        
+        # 5. Retornar mensaje genérico
+        return f"Se ha enviado un código de verificación al email registrado para el afiliado {numero_afiliado}"
+        
     except Exception as e:
-        raise Exception(f"Error al buscar afiliado: {str(e)}")
+        raise Exception(f"Error al solicitar código: {str(e)}")
+
+@mcp.tool()
+async def datos_afiliado_verificados(ctx: Context[ServerSession, AppContext], numero_afiliado: str, nro_doc: str, codigo: str) -> Afiliado:
+    """
+    PASO 2: Verifica el código OTP y retorna los datos del afiliado.
+    
+    Esta herramienta se usa DESPUÉS de 'solicitar_codigo_afiliado' cuando el usuario ya proporcionó el código de 6 dígitos.
+    
+    Flujo para el LLM:
+    1. Solo usar esta herramienta DESPUÉS de que el usuario proporcione el código OTP.
+    2. Usa los MISMOS datos (numero_afiliado y nro_doc) que usaste en 'solicitar_codigo_afiliado'.
+    3. Si la verificación es exitosa, muestra los datos del afiliado al usuario.
+    4. Si falla, informa: "El código es inválido, expiró o ya fue utilizado. Por favor, solicitá un nuevo código."
+    
+    Args:
+        numero_afiliado (str): Número de afiliado (el mismo usado en solicitar_codigo_afiliado)
+        nro_doc (str): Número de documento (el mismo usado en solicitar_codigo_afiliado)
+        codigo (str): Código OTP de 6 dígitos proporcionado por el usuario
+    
+    Returns:
+        Afiliado: Datos completos del afiliado verificado (nombre, apellido, email, plan, etc.)
+    """
+    try:
+        from utils import obtener_otp_valido
+        
+        db = ctx.request_context.lifespan_context.db
+        
+        # 1. Verificar código OTP
+        otp_valido = await obtener_otp_valido(db.conn, numero_afiliado, nro_doc, codigo)
+        if not otp_valido:
+            raise Exception("Código de verificación inválido, expirado o ya utilizado")
+        
+        # 2. Buscar y retornar datos del afiliado
+        afiliado = await buscar_afiliado_por_dni(db.conn, numero_afiliado, nro_doc)
+        if not afiliado:
+            raise Exception("Error al obtener datos del afiliado")
+        
+        return afiliado
+        
+    except Exception as e:
+        raise Exception(f"Error en verificación: {str(e)}")
 
 @mcp.tool()
 async def get_id_practica_por_nombre(ctx: Context[ServerSession, AppContext], nombre: str) -> List[Practica]:

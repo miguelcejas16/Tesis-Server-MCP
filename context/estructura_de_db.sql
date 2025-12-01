@@ -52,13 +52,17 @@ CREATE TABLE public.afiliado (
 	email text NULL,
 	tel text NULL,
 	plan_id int4 NULL,
-	numero_afiliado bpchar(8) DEFAULT '00000000'::bpchar NOT NULL,
+	afiliado_numero bpchar(8) NOT NULL,
 	domicilio text NULL,
+	cbu bpchar(22) NULL,
+	CONSTRAINT afiliado_numero_unique UNIQUE (afiliado_numero),
 	CONSTRAINT afiliado_pkey PRIMARY KEY (afiliado_id),
 	CONSTRAINT afiliado_tipo_doc_nro_doc_key UNIQUE (tipo_doc, nro_doc),
-	CONSTRAINT afiliado_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public."plan"(plan_id)
+	CONSTRAINT chk_afiliado_numero_formato CHECK ((afiliado_numero ~ '^[0-9]{8}$'::text))
 );
 CREATE INDEX idx_afiliado_doc ON public.afiliado USING btree (tipo_doc, nro_doc);
+-- public.afiliado foreign keys
+ALTER TABLE public.afiliado ADD CONSTRAINT afiliado_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public."plan"(plan_id);
 
 CREATE TABLE public.documentos_reintegro (
 	documento_id int4 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START 1 CACHE 1 NO CYCLE) NOT NULL,
@@ -194,3 +198,13 @@ CREATE TABLE public.cobertura_medicamento (
 );
 ALTER TABLE public.cobertura_medicamento ADD CONSTRAINT cobertura_medicamento_medicamento_id_fkey FOREIGN KEY (medicamento_id) REFERENCES public.medicamento(medicamento_id) ON DELETE CASCADE;
 ALTER TABLE public.cobertura_medicamento ADD CONSTRAINT cobertura_medicamento_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public."plan"(plan_id) ON DELETE CASCADE;
+
+CREATE TABLE otp_afiliado (
+    id SERIAL PRIMARY KEY,
+    numero_afiliado VARCHAR(50) NOT NULL,
+    nro_doc VARCHAR(20) NOT NULL,
+    codigo VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    usado BOOLEAN NOT NULL DEFAULT FALSE,
+    intentos INT NOT NULL DEFAULT 0
+);

@@ -85,20 +85,46 @@ def register_reintegro_tools(mcp: FastMCP):
     @mcp.tool(name="crear_reintegro_inicial")
     async def crear_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int, cbu: str) -> int:
         '''
-        Inicia un nuevo reintegro para el afiliado.
+        Inicia un nuevo reintegro para el afiliado usando su CBU registrado.
 
-        ⚠️ IMPORTANTE - Flujo OBLIGATORIO antes de ejecutar esta tool:
+        ⚠️ REGLAS OBLIGATORIAS SOBRE EL CBU:
+        
+        1. NUNCA pedir un CBU al afiliado
+        2. NUNCA aceptar un CBU que te ofrezcan
+        3. SIEMPRE usar el CBU que está registrado en el sistema
+        4. ANTES de ejecutar esta tool, MOSTRAR al afiliado su CBU registrado
+        5. PEDIR confirmación explícita antes de crear el reintegro
+        
+        Cómo confirmar con el afiliado (OBLIGATORIO):
+        Antes de llamar a esta tool, DECIR EXACTAMENTE:
+        • "El reintegro se realizará al siguiente CBU registrado: [CBU completo]"
+        • "¿Es correcto este CBU para continuar?"
+        
+        Si el afiliado dice que NO es correcto:
+        • "Necesitás acercarte a la obra social para actualizar tu CBU."
+        • "No puedo modificar el CBU desde acá."
+        • NO crear el reintegro.
+        
+        Si el afiliado dice que SÍ es correcto:
+        • Llamar a esta tool con el CBU registrado.
+        • "Perfecto, voy a iniciar tu reintegro."
+
+        ⚠️ FLUJO COMPLETO OBLIGATORIO:
         
         1. PRIMERO: Ofrecer mostrar el reglamento
            • "Antes de empezar, ¿querés que te muestre el reglamento de reintegros?"
            • Si dice que sí → llamar a iniciar_reintegro()
            • Si dice que no → continuar con paso 2
         
-        2. SEGUNDO: Confirmar datos del afiliado
-           • Verificar que tenés el afiliado_id correcto
-           • Si no lo tenés, obtenerlo primero
+        2. SEGUNDO: Confirmar CBU registrado
+           • Obtener el CBU del afiliado desde el sistema
+           • Mostrar el CBU completo al afiliado
+           • "El reintegro se realizará al siguiente CBU registrado: [CBU]"
+           • "¿Es correcto este CBU para continuar?"
+           • Esperar confirmación explícita
         
         3. TERCERO: Crear el reintegro
+           • Solo si el afiliado confirmó el CBU
            • Llamar a esta herramienta
            • Guardar el reintegro_id retornado
         
@@ -110,17 +136,9 @@ def register_reintegro_tools(mcp: FastMCP):
            • Llamar a adjuntar_documentos_a_reintegro
            • ⚠️ SOLO cuando ya haya ítems cargados
 
-        Cómo comunicarlo al usuario:
-        Antes de crear:
-        • "Perfecto, voy a iniciar tu reintegro."
-        
-        Después de crear:
-        • "Reintegro iniciado. Ahora necesito que me digas qué querés incluir."
-        • NO mostrar el reintegro_id técnico al usuario.
-
         Parámetros:
         - afiliado_id (int): ID del afiliado que solicita el reintegro.
-        - cbu (int): CBU donde se realizará el reintegro.
+        - cbu (str): CBU registrado del afiliado (obtenido del sistema, NO del usuario).
 
         Retorna:
         - int: ID del reintegro creado (usarlo internamente, no mostrarlo).
@@ -129,12 +147,12 @@ def register_reintegro_tools(mcp: FastMCP):
         - El reintegro queda en estado PENDIENTE.
         '''
         try:
-            # Validación simple y directa del CBU (cadena de 22 dígitos)
+            # Validación simple del CBU (22 dígitos)
             if cbu is None:
-                raise ValueError("cbu requerido")
+                raise ValueError("CBU requerido")
             cbu_clean = str(cbu).strip()
             if not cbu_clean.isdigit() or len(cbu_clean) != 22:
-                raise ValueError("cbu inválido: debe ser una cadena de 22 dígitos")
+                raise ValueError("CBU inválido: debe ser una cadena de 22 dígitos")
 
             db = ctx.request_context.lifespan_context.db
             reintegro_id = await utils_reintegros.create_temp_reintegro(db.conn, afiliado_id, cbu)

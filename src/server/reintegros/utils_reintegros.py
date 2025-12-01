@@ -86,6 +86,25 @@ async def add_item_to_reintegro(
         else:
             raise ValueError("El valor de 'tipo' debe ser 'M' o 'P'")
 
+        # Verificar si el ítem ya existe en el reintegro
+        query_check = """
+            SELECT item_id FROM public.reintegro_item
+            WHERE reintegro_id = $1
+              AND tipo = $2
+              AND COALESCE(practica_id, 0) = $3
+              AND COALESCE(medicamento_id, 0) = $4
+        """
+        existing_item = await connection.fetchrow(
+            query_check,
+            reintegro_id,
+            tipo_db,
+            practica_id or 0,
+            medicamento_id or 0,
+        )
+        
+        if existing_item:
+            raise ValueError("El ítem ya existe en este reintegro")
+
         # Insertar el ítem y actualizar el total del reintegro dentro de una transacción simple
         query = """
             INSERT INTO public.reintegro_item (
