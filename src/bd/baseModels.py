@@ -13,6 +13,7 @@ class Afiliado(BaseModel):
     email: Optional[str] = None
     tel: Optional[str] = None
     plan_id: Optional[int] = None
+    cbu: Optional[str] = None
     
     class Config:
         from_attributes = True  # Para poder crear desde dict/row

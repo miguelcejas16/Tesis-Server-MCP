@@ -166,7 +166,7 @@ async def datos_afiliado_verificados(ctx: Context[ServerSession, AppContext], nu
         codigo (str): Código OTP de 6 dígitos proporcionado por el usuario
     
     Returns:
-        Afiliado: Datos completos del afiliado verificado (nombre, apellido, email, plan, etc.)
+        Afiliado: Datos completos del afiliado verificado (nombre, apellido, email, plan, cbu, etc.)
     """
     try:
         from utils import obtener_otp_valido
