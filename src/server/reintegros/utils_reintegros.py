@@ -209,31 +209,33 @@ async def list_reintegros_por_afiliado_y_rango(
         raise Exception(f"Error en utils.list_reintegros_por_afiliado_y_rango: {e}")
 
 '''
-Obtiene un reintegro por su ID junto con sus ítems asociados.
+Obtiene un reintegro por su ID y afiliado_id junto con sus ítems asociados.
 Incluye información de práctica (nombre) o medicamento (principio_activo, marca)
 según corresponda al tipo del ítem.
 Parámetros:
   connection (asyncpg.Connection) — Conexión a la base de datos.
   reintegro_id (int) — ID del reintegro a buscar.
+  afiliado_id (int) — ID del afiliado dueño del reintegro.
 Retorna:
   Optional[dict] — Diccionario con los datos del reintegro y una clave 'items' con la lista de ítems;
-                   None si no se encuentra el reintegro.
+                   None si no se encuentra el reintegro o no pertenece al afiliado.
 '''
 async def get_reintegro_por_id(
     connection: asyncpg.Connection,
-    reintegro_id: int
+    reintegro_id: int,
+    afiliado_id: int
 ) -> Optional[dict]:
     try:
-        # Obtener el reintegro principal
+        # Obtener el reintegro principal validando reintegro_id Y afiliado_id
         query_reintegro = """
             SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado,
                    fecha_presentacion, observaciones, cbu, adjuntos_confirmados
             FROM public.reintegro
-            WHERE reintegro_id = $1
+            WHERE reintegro_id = $1 AND afiliado_id = $2
         """
-        row = await connection.fetchrow(query_reintegro, reintegro_id)
+        row = await connection.fetchrow(query_reintegro, reintegro_id, afiliado_id)
         if not row:
-            return [] # Reintegro no encontrado
+            return None # Reintegro no encontrado o no pertenece al afiliado
 
         # Convertir fila a dict y hacer valores JSON-safe (Decimal -> float, datetime/date -> ISO)
         def _json_safe_value(v):

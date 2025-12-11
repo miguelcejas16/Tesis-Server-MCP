@@ -335,82 +335,34 @@ def register_reintegro_tools(mcp: FastMCP):
         except Exception as e:
             raise Exception(f"Error al listar reintegros del afiliado: {str(e)}")
         
-    @mcp.tool(name="generar_nota_reintegro")
-    async def generar_nota_reintegro(
-        ctx: Context[ServerSession, "AppContext"],
-        motivo: str,
-        numero_afiliado: str
-    ) -> str:
-        '''
-        Genera una nota formal dirigida al Director/a de OSEP para solicitudes de reintegro.
-
-        Instrucciones para el LLM (IMPORTANTE):
-        Antes de llamar a esta herramienta, SIEMPRE preguntar al afiliado:
-        1. ¿En qué lugar se realizó la prestación? (ciudad, clínica, hospital, etc.)
-        2. ¿En qué fecha fue la prestación? (formato DD/MM/YYYY)
-        3. ¿Quién fue el prestador? (nombre del médico, profesional o institución)
-        4. ¿Cuál es el motivo de la solicitud? (qué necesita autorizar o reintegrar)
-
-        Luego, construir el texto del motivo con esta estructura OBLIGATORIA:
-        
-        "Me dirijo a usted con el fin de [solicitud específica del afiliado]. La prestación fue realizada en [lugar] el día [fecha] por [prestador]. Adjunto los comprobantes y documentación requerida."
-
-        Ejemplo completo:
-        "Me dirijo a usted con el fin de solicitar el reintegro de una consulta médica especializada. La prestación fue realizada en Clínica San Martín, Mendoza, el día 15/10/2024 por el Dr. Juan Pérez. Adjunto los comprobantes y documentación requerida."
-
-        Parámetros:
-        - motivo (str): Texto completo de la nota siguiendo la estructura indicada arriba.
-        - numero_afiliado (str): Número de carné del afiliado titular.
-
-        Salida:
-        - Devuelve la URL completa para descargar la nota generada en PDF.
-        '''
-        try:
-            import json
-            import httpx
-            
-            # Preparar el body del POST
-            payload = {
-                "motivo": motivo,
-                "afiliado_numero": numero_afiliado
-            }
-            
-            # Hacer la llamada POST a la API
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "http://localhost:8000/reintegros/generar-nota",
-                    json=payload
-                )
-                response.raise_for_status()
-                result = response.json()
-            
-            # Devolver siempre JSON serializado (string) para el flujo de herramientas
-            return json.dumps(result)
-        except Exception as e:
-            raise Exception(f"Error en tool.generar_nota_reintegro: {e}")
-
     @mcp.tool(name="obtener_reintegro_por_id")
     async def obtener_reintegro_por_id(
         ctx: Context[ServerSession, "AppContext"],
-        reintegro_id: int
+        reintegro_id: int,
+        afiliado_id: int
     ) -> str:
         '''
-        Obtiene los detalles completos de un reintegro por su ID.
+        Obtiene los detalles completos de un reintegro por su ID y afiliado.
 
         Parámetros:
         - reintegro_id (int): ID del reintegro a consultar.
+        - afiliado_id (int): ID del afiliado dueño del reintegro.
 
         Retorna:
         - str: JSON con todos los detalles del reintegro, incluyendo ítems y estado.
 
         Notas:
-        - Útil para verificar el estado actual del reintegro.
-        - Si no se encuentra el reintegro, retorna un error descriptivo.
+        - Valida que el reintegro pertenezca al afiliado especificado.
+        - Si no se encuentra el reintegro o no pertenece al afiliado, retorna un error descriptivo.
         '''
         try:
             import json
             db = ctx.request_context.lifespan_context.db
-            reintegro = await utils_reintegros.get_reintegro_por_id(db.conn, reintegro_id)
+            reintegro = await utils_reintegros.get_reintegro_por_id(db.conn, reintegro_id, afiliado_id)
+            
+            if reintegro is None:
+                return(f"Reintegro no encontrado o no pertenece al afiliado {afiliado_id}")
+            
             return json.dumps(reintegro)
         except Exception as e:
             raise Exception(f"Error al obtener reintegro por ID: {str(e)}")
