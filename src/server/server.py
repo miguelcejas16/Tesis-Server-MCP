@@ -109,7 +109,7 @@ async def solicitar_codigo_afiliado(ctx: Context[ServerSession, AppContext], num
     1. Cuando el usuario pida "ver mis datos", "mi cobertura", "mis reintegros", etc.
     2. PRIMERO pide al usuario su número de afiliado y número de documento.
     3. Llama a esta herramienta con esos datos.
-    4. Informa al usuario: "Te envié un código de 6 dígitos al email registrado. Por favor, escribí el código aquí."
+    4. Informa al usuario: "Para ayudarte con los trámites que necesites, necesito validar tu identidad con datos mínimos. Te envié un código de 6 dígitos al email registrado. Este código solo se utilizará para identificarte y habilitar tus gestiones. Por favor, escribí el código aquí."
     5. Espera a que el usuario proporcione el código.
     6. Luego usa la herramienta 'datos_afiliado_verificados' con el código.
     
@@ -138,11 +138,11 @@ async def solicitar_codigo_afiliado(ctx: Context[ServerSession, AppContext], num
         
         # 4. Enviar código por email
         asunto = "Código de verificación - Obra Social"
-        cuerpo = f"Hola {afiliado.nombre},\n\nTu código de verificación es: {codigo}\n\nEste código expira en 5 minutos."
+        cuerpo = f"Hola {afiliado.nombre},\n\nTu código de verificación es: {codigo}\n\nEste código expira en 5 minutos.\n\nEste código se utilizará únicamente para identificarte y habilitar tus gestiones."
         enviar_email(afiliado.email, asunto, cuerpo)
         
-        # 5. Retornar mensaje genérico
-        return f"Se ha enviado un código de verificación al email registrado para el afiliado {numero_afiliado}"
+        # 5. Retornar mensaje con aclaración sobre el uso de datos
+        return f"Para ayudarte con los trámites que necesites, validé tu identidad con datos mínimos. Se ha enviado un código de 6 dígitos al email registrado para el afiliado {numero_afiliado}. Este código solo se utilizará para identificarte y habilitar tus gestiones. Por favor, escribí el código aquí."
         
     except Exception as e:
         raise Exception(f"Error al solicitar código: {str(e)}")
