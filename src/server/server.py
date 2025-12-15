@@ -105,6 +105,10 @@ async def solicitar_codigo_afiliado(ctx: Context[ServerSession, AppContext], num
     
     Esta es la PRIMERA herramienta que debes usar cuando el usuario pida ver sus datos o tu necesites los datos del afiliado.
     
+    IMPORTANTE: Siempre informa que los datos solicitados para identificar al afiliado se utilizarán exclusivamente para este fin y para la gestión de los trámites correspondientes. No tendrán ningún otro uso.
+                Cuando no encuentres el afiliado, indica que se comunique con la obra social. NO DES DETALLES UN MENSAJE SUPER GENERICO DE QUE NO EXISTE.
+                Cuando el afiliado solicite sus datos personales, solo debes mostrar la información autorizada para su visualización. Si requiere datos adicionales, deberá comunicarse directamente con la obra social.
+
     Flujo para el LLM:
     1. Cuando el usuario pida "ver mis datos", "mi cobertura", "mis reintegros", etc.
     2. PRIMERO pide al usuario su número de afiliado y número de documento.
@@ -128,7 +132,7 @@ async def solicitar_codigo_afiliado(ctx: Context[ServerSession, AppContext], num
         # 1. Verificar que el afiliado existe
         afiliado = await buscar_afiliado_por_dni(db.conn, numero_afiliado, nro_doc)
         if not afiliado:
-            return "No se encontró un afiliado con esos datos"
+            return "No existe afiliado con los datos proporcionados. Si crees que es un error comunicate con la obra social."
         
         # 2. Generar código OTP
         codigo = generar_codigo_otp()
@@ -139,10 +143,12 @@ async def solicitar_codigo_afiliado(ctx: Context[ServerSession, AppContext], num
         # 4. Enviar código por email
         asunto = "Código de verificación - Obra Social"
         cuerpo = f"Hola {afiliado.nombre},\n\nTu código de verificación es: {codigo}\n\nEste código expira en 5 minutos.\n\nEste código se utilizará únicamente para identificarte y habilitar tus gestiones."
-        enviar_email(afiliado.email, asunto, cuerpo)
+        #enviar_email(afiliado.email, asunto, cuerpo)
+        logger.info(f"Codigo enviado: {codigo}")
+        return f"este es tu codigo para pruebas: {codigo}"
         
         # 5. Retornar mensaje con aclaración sobre el uso de datos
-        return f"Para ayudarte con los trámites que necesites, validé tu identidad con datos mínimos. Se ha enviado un código de 6 dígitos al email registrado para el afiliado {numero_afiliado}. Este código solo se utilizará para identificarte y habilitar tus gestiones. Por favor, escribí el código aquí."
+        #return f"Para ayudarte con los trámites que necesites, validé tu identidad con datos mínimos. Se ha enviado un código de 6 dígitos al email registrado para el afiliado {numero_afiliado}. Este código solo se utilizará para identificarte y habilitar tus gestiones. Por favor, escribí el código aquí."
         
     except Exception as e:
         raise Exception(f"Error al solicitar código: {str(e)}")
@@ -219,18 +225,29 @@ async def get_id_practica_por_nombre(ctx: Context[ServerSession, AppContext], no
         raise Exception(f"Error al buscar práctica: {str(e)}")
 
 @mcp.tool()
-async def practicas_cubiertas(ctx: Context[ServerSession, AppContext], plan_id: int) -> List[Practica]:
+async def practicas_cubiertas(ctx: Context[ServerSession, AppContext], afiliado_id: int) -> List[Practica]:
     """
-    Obtiene las prácticas médicas cubiertas por un plan
+    Obtiene las prácticas médicas cubiertas por el plan del afiliado.
+    
+    Esta herramienta busca primero al afiliado, obtiene su plan_id y luego retorna 
+    todas las prácticas médicas cubiertas por ese plan.
+    
+    Workflow para el LLM:
+    1. Cuando el usuario quiera saber qué prácticas están cubiertas en su plan, usa esta herramienta.
+    2. Necesitas el afiliado_id del usuario (obtenido después de verificar su identidad).
+    3. La herramienta retorna una lista de todas las prácticas cubiertas.
+    4. Puedes mostrar esta información al usuario para que vea qué está disponible.
+    
     Args:
-        ctx: Contexto del servidor con sesión y aplicación
-        plan_id (int): ID del plan
+        afiliado_id (int): ID del afiliado
+    
     Returns:
-        Optional[List[Practica]]: Lista de objetos Practica o None si no hay coberturas
+        List[Practica]: Lista de objetos Practica cubiertas por el plan del afiliado, 
+                        o None si no hay coberturas
     """
     try:
         db = ctx.request_context.lifespan_context.db
-        resultado = await get_practicas_cubiertas(db.conn, plan_id)
+        resultado = await get_practicas_cubiertas(db.conn, afiliado_id)
         return resultado
     except Exception as e:
         raise Exception(f"Error al obtener prácticas cubiertas: {str(e)}")

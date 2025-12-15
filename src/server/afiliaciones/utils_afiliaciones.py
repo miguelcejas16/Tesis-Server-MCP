@@ -134,12 +134,8 @@ async def list_afiliaciones_por_id_y_dni(
     dni: int,
 ) -> List[dict]:
     try:
-        if afiliacion_id is None or dni is None:
-            raise Exception("Se requieren 'afiliacion_id' y 'dni' para la búsqueda conjunta.")
         query = """
-            SELECT id, nombre_apellido, dni, fecha_nacimiento, domicilio_calle,
-                   domicilio_numero, localidad, provincia, telefono, email,
-                   tipo_afiliado, estado, adjuntos_confirmados
+            SELECT id, estado
             FROM public.afiliacion
             WHERE id = $1 AND dni = $2
             ORDER BY id DESC
@@ -148,3 +144,35 @@ async def list_afiliaciones_por_id_y_dni(
         return [dict(r) for r in rows]
     except Exception as e:
         raise Exception(f"Error en utils.list_afiliaciones_por_id_y_dni: {e}")
+
+'''
+Cancela una afiliación poniendo su estado en 'CANCELADO'.
+Valida que la afiliación exista y pertenezca al DNI dado.
+Parámetros:
+  connection (asyncpg.Connection) — Conexión a la base de datos.
+  afiliacion_id (int) — ID de la afiliación a cancelar.
+  dni (int) — DNI del solicitante dueño de la afiliación.
+Retorna:
+  bool — True si se actualizó al menos una fila; False si no existe o no pertenece al DNI.
+'''
+async def cancelar_afiliacion(
+    connection: asyncpg.Connection,
+    afiliacion_id: int,
+    dni: int
+) -> bool:
+    try:
+        query = """
+            UPDATE public.afiliacion
+            SET estado = 'CANCELADO'
+            WHERE id = $1 AND dni = $2
+        """
+        result = await connection.execute(query, afiliacion_id, dni)
+        if result and result.startswith("UPDATE"):
+            try:
+                updated = int(result.split()[1])
+                return updated > 0
+            except (IndexError, ValueError):
+                return False
+        return False
+    except Exception as e:
+        raise Exception(f"Error en utils.cancelar_afiliacion: {e}")

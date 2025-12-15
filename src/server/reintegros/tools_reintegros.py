@@ -29,9 +29,9 @@ def register_reintegro_tools(mcp: FastMCP):
     '''
     
     @mcp.tool("iniciar_reintegro")
-    async def iniciar_reintegro() -> Reglamento:
+    async def iniciar_reintegro() -> dict:
         '''
-        Muestra el reglamento oficial de reintegros de la obra social MCP.
+        Devuelve el reglamento oficial de reintegros de la obra social MCP.
 
         Cuándo usarla:
         - Cuando el afiliado menciona "reintegro" por primera vez.
@@ -55,32 +55,149 @@ def register_reintegro_tools(mcp: FastMCP):
         - Presentarlo de forma clara y legible.
 
         Reglas para el asistente:
-        - 🔴 SIEMPRE ofrecer ver el reglamento antes de crear_reintegro.
-        - ✅ Preguntar primero, no asumir que el usuario lo quiere ver.
-        - ✅ Después de mostrarlo, esperar confirmación para continuar.
-        '''
-        try:
-            import os
-            # Obtener la ruta de este archivo (tools_reintegros.py)
-            # que está en: src/server/reintegros/tools_reintegros.py
-            base_dir = os.path.dirname(__file__)
-            
-            # Subir dos niveles para llegar a src/ y luego ir a static/
-            # Desde: src/server/reintegros/ -> src/server/ -> src/ -> src/static/
-            ruta = os.path.normpath(os.path.join(base_dir, '../../static/reglamento_reintegro.md'))
-            
-            with open(ruta, 'r', encoding='utf-8') as f:
-                contenido = f.read()
+        - SIEMPRE ofrecer ver el reglamento antes de crear_reintegro.
+        - Preguntar primero, no asumir que el usuario lo quiere ver.
+        - Después de mostrarlo, esperar confirmación para continuar.
 
-            reglamento = Reglamento(
-                titulo="Reglamento de Reintegro",
-                contenido_md=contenido,
-                formato='md',
-                ruta_local=ruta
-            )
-            return reglamento
-        except Exception as e:
-            raise Exception(f"Error leyendo reglamento: {e}")
+        Retorna:
+        - dict: Contenido del reglamento.
+        '''
+
+        return {
+            "documento": {
+                "tipo": "Reglamento",
+                "nombre": "Reglamento de Reintegros Médicos MCP",
+                "formato_requerido": "Toda la documentación debe presentarse en formato PDF"
+            },
+
+            "marco_legal_obligatorio": {
+                "jerarquia": "Norma rectora prioritaria",
+                "descripcion_general": (
+                    "El presente procedimiento se encuentra alcanzado por la normativa "
+                    "de protección de datos personales y datos sensibles de salud, "
+                    "resultando de cumplimiento obligatorio en todas las etapas del reintegro."
+                ),
+                "normativa_aplicable": [
+                    {
+                        "norma": "Ley 25.326 de Protección de los Datos Personales",
+                        "tipo": "Ley nacional",
+                        "caracter": "Cumplimiento obligatorio",
+                        "ambito": "Tratamiento de datos personales y datos sensibles de salud",
+                        "impacto_directo_en_el_procedimiento": [
+                            "Tratamiento confidencial de los datos de salud",
+                            "Limitación del acceso a datos a personal autorizado",
+                            "Uso exclusivo de los datos para la gestión del reintegro",
+                            "Prohibición de usos secundarios no autorizados",
+                            "Garantía de los derechos del titular de los datos"
+                        ]
+                    }
+                ],
+                "obligacion_para_el_asistente": (
+                    "Toda explicación, solicitud de datos o descripción del procedimiento "
+                    "debe contextualizarse en el marco de la Ley 25.326, especialmente "
+                    "cuando se trate información de salud."
+                )
+            },
+
+            "procedimiento_operativo_de_reintegros": {
+                "practicas_ambulatorias": {
+                    "descripcion": "Reintegros vinculados a prácticas médicas realizadas en forma ambulatoria",
+                    "requisitos": [
+                        "Orden médica con diagnóstico emitida por profesional matriculado",
+                        "Autorización previa cuando la práctica lo requiera según convenio",
+                        "Informe o resultado de la prestación cuando corresponda",
+                        "Factura original a nombre del afiliado titular firmada por el mismo",
+                        "Fotocopia del DNI del afiliado"
+                    ]
+                },
+
+                "medicamentos": {
+                    "descripcion": "Reintegros vinculados a la adquisición de medicamentos",
+                    "requisitos": [
+                        "Receta médica con los datos del profesional prescriptor",
+                        "Factura o ticket fiscal original",
+                        "Troqueles o rótulos de los medicamentos adquiridos",
+                        "Fotocopia del DNI del afiliado"
+                    ]
+                }
+            },
+
+            "plazo_de_presentacion": {
+                "plazo": "60 días corridos",
+                "computo": "Desde la fecha de emisión de la factura o de la receta médica",
+                "consecuencia_del_incumplimiento": "La solicitud puede ser rechazada por presentación fuera de término"
+            },
+
+            "forma_de_pago": {
+                "modalidad": "Transferencia bancaria",
+                "destinatario": "Titular afiliado",
+                "requisito": "CBU informado y validado del titular"
+            },
+
+            "tratamiento_de_datos_personales": {
+                "categorias_de_datos": {
+                    "datos_identificatorios": [
+                        "Nombre y apellido",
+                        "Tipo y número de documento",
+                        "Número de afiliado",
+                        "Datos de contacto"
+                    ],
+                    "datos_administrativos_y_economicos": [
+                        "Información del plan de salud",
+                        "Datos bancarios (CBU) del titular"
+                    ],
+                    "datos_de_salud": [
+                        "Diagnóstico consignado en la orden médica o receta",
+                        "Tipo de prestación médica",
+                        "Fecha y lugar de la atención",
+                        "Informes o resultados vinculados a la práctica o medicación"
+                    ]
+                },
+                "caracter_de_los_datos": {
+                    "datos_de_salud": "Datos sensibles que requieren protección reforzada"
+                }
+            },
+
+            "finalidad_del_tratamiento": {
+                "objetivos": [
+                    "Recepcionar la solicitud de reintegro",
+                    "Analizar y gestionar el trámite administrativo",
+                    "Verificar el cumplimiento del reglamento",
+                    "Efectuar el pago del reintegro correspondiente",
+                    "Cumplir con obligaciones legales y regulatorias del sistema de salud"
+                ],
+                "limitacion_de_uso": "Los datos no podrán ser utilizados para finalidades distintas a las aquí establecidas"
+            },
+
+            "derechos_del_titular_de_los_datos": {
+                "derechos_reconocidos": [
+                    "Acceso a los datos personales",
+                    "Rectificación de datos incorrectos",
+                    "Actualización de la información",
+                    "Supresión de los datos cuando corresponda",
+                    "Información sobre el tratamiento de los datos"
+                ],
+                "canales_de_ejercicio": {
+                    "correo_electronico": "obrasocialMCP@mcp.com",
+                    "telefono": "3834-112233",
+                    "atencion_presencial": {
+                        "direccion": "Nuñez del Prado 666",
+                        "horario": "Lunes a viernes de 7:00 a 13:00"
+                    }
+                }
+            },
+
+            "confidencialidad_y_acceso": {
+                "acceso_a_los_datos": "Limitado exclusivamente a personal autorizado",
+                "terceros": "Proveedores involucrados bajo deber de confidencialidad",
+                "medidas_generales": [
+                    "Confidencialidad reforzada",
+                    "Acceso restringido",
+                    "Uso conforme a finalidad declarada"
+                ]
+            }
+        }
+
 
     @mcp.tool(name="crear_reintegro_inicial")
     async def crear_reintegro(ctx: Context[ServerSession, "AppContext"], afiliado_id: int, cbu: str) -> int:
@@ -108,6 +225,8 @@ def register_reintegro_tools(mcp: FastMCP):
         Si el afiliado dice que SÍ es correcto:
         • Llamar a esta tool con el CBU registrado.
         • "Perfecto, voy a iniciar tu reintegro."
+
+        INFORMA AL AFILIADO ANTES DE EJECUTAR. "Vamos a armar tu solicitud paso a paso. Podés agregar prácticas/medicamentos y luego adjuntar la documentación."
 
         ⚠️ FLUJO COMPLETO OBLIGATORIO:
         
@@ -178,13 +297,14 @@ def register_reintegro_tools(mcp: FastMCP):
         - Podés llamar esta herramienta varias veces para cargar múltiples ítems.
 
         OBLIGATORIO - Avisar al usuario que tenga cuidado con los items que carga porque no hay vuelta atras.
+        LUEGO DE USAR RECUERDA QUE ESTE TRANQUILO QUE PUEDE CANCELAR EL REINTEGRO SI SE EQUIVOCA.
 
         Flujo para el LLM (estricto):
         1) Asegurate de tener `reintegro_id` (devuelto por `iniciar_reintegro`).
         2) Si `tipo == 'P'` (Práctica), **requerido** `practica_id`.
         3) Si `tipo == 'M'` (Medicamento), **requerido** `medicamento_id`.
         4) Repetir hasta cargar todos los ítems necesarios.
-        5) Cuando haya al menos **1 ítem**, llamar a `mcp_obra_social_adjuntar_documentos_a_reintegro` para que el afiliado adjunte PDFs y complete el envío desde la UI.
+        5) Cuando haya al menos **1 ítem**, llamar a `adjuntar_documentos_a_reintegro` para que el afiliado adjunte PDFs y complete el envío desde la UI.
 
         Parámetros:
         - reintegro_id (int): ID del reintegro al que se agrega el ítem.
@@ -272,8 +392,8 @@ def register_reintegro_tools(mcp: FastMCP):
             })
             
         except Exception as e:
-            raise Exception(f"Error en tool.adjuntar_documentos_a_reintegro: {e}")
-        
+            raise Exception(f"Error en tool.adjuntar_documentos_a_reintegro: {e}")   
+
     @mcp.tool(name="listar_reintegros_afiliado")
     async def listar_reintegros_afiliado(
         ctx: Context[ServerSession, "AppContext"],
@@ -366,3 +486,55 @@ def register_reintegro_tools(mcp: FastMCP):
             return json.dumps(reintegro)
         except Exception as e:
             raise Exception(f"Error al obtener reintegro por ID: {str(e)}")
+    
+    @mcp.tool(name="cancelar_reintegro")
+    async def cancelar_reintegro(
+        ctx: Context[ServerSession, "AppContext"],
+        reintegro_id: int,
+        afiliado_id: int
+    ) -> str:
+        '''
+        Cancela un reintegro existente poniendo su estado en CANCELADO.
+
+        Cuándo usarla:
+        - Cuando el afiliado solicita cancelar un reintegro que aún no fue procesado.
+        - Solo se pueden cancelar reintegros que pertenezcan al afiliado.
+        - ⚠️ SIEMPRE confirmar con el usuario antes de cancelar.
+
+        Cómo comunicarlo al usuario:
+        Antes de llamar a esta tool, PREGUNTÁ:
+        • "¿Estás seguro que querés cancelar el reintegro?"
+        • "Una vez cancelado, no se puede revertir. ¿Confirmo la cancelación?"
+
+        Después de cancelar:
+        • "El reintegro fue cancelado exitosamente."
+        • "Si necesitás hacer un nuevo reintegro, podés iniciarlo cuando quieras."
+
+        Reglas para el asistente:
+        - 🔴 OBLIGATORIO: Confirmar SIEMPRE antes de cancelar.
+        - ✅ Validar que el reintegro pertenezca al afiliado.
+        - ✅ Informar claramente que la acción es irreversible.
+
+        Parámetros:
+        - reintegro_id (int): ID del reintegro a cancelar.
+        - afiliado_id (int): ID del afiliado dueño del reintegro.
+
+        Retorna:
+        - str: Mensaje de éxito o error.
+
+        Notas:
+        - Si el reintegro no existe o no pertenece al afiliado, retorna error.
+        - La cancelación es definitiva y no puede revertirse.
+        '''
+        try:
+            db = ctx.request_context.lifespan_context.db
+            success = await utils_reintegros.cancelar_reintegro(db.conn, reintegro_id, afiliado_id)
+            
+            if not success:
+                return f"No se pudo cancelar el reintegro. Verificá que el ID {reintegro_id} sea correcto y que te pertenezca."
+            
+            return f"Reintegro {reintegro_id} cancelado exitosamente."
+        except Exception as e:
+            raise Exception(f"Error al cancelar reintegro: {str(e)}")
+
+

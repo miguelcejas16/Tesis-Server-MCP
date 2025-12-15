@@ -132,43 +132,57 @@ def register_comunicacion_tools(mcp: FastMCP):
         resultado_deseado: Optional[str] = None
     ) -> int:
         '''
-        Registra una nueva comunicación formal de un afiliado hacia la institución
-        (agradecimiento, sugerencia o reclamo).
+            Registra una comunicación formal de un afiliado hacia la obra social
+            (agradecimiento, sugerencia o reclamo).
 
-        👉 Instrucciones para el modelo (LLM):
-        - Antes de usar esta herramienta, debes recopilar toda la información necesaria
-        a través del diálogo con el afiliado. No invoques la tool hasta que tengas
-        TODOS los campos completos.
-        - Pregunta al afiliado de manera natural y respetuosa los siguientes datos:
-            1. tipo de comunicación (AGRADECIMIENTO / SUGERENCIA / RECLAMO)
-            2. asunto o tema principal
-            3. descripción detallada de la situación (redacta en tono formal)
-            4. lugar donde ocurrió o se relaciona el hecho
-            5. fecha del evento o situación (usa formato YYYY-MM-DD)
-            6. resultado deseado o solicitud del afiliado
-        - Luego, redacta la descripción final combinando la información recopilada
-        en un texto coherente, formal y claro, apto para registrar como comunicación oficial.
-        - Finalmente, llama a esta tool pasando todos los parámetros completos.
-        - AL FINAL, informa al afiliado que su situación ha sido registrada exitosamente.
-        
-        Parámetros:
-        - tipo (str): "AGRADECIMIENTO", "SUGERENCIA" o "RECLAMO".
-        - descripcion (str): Texto redactado final de la comunicación.
-        - afiliado_id (int): ID del afiliado que realiza la comunicación.
-        - asunto (str): Tema principal o resumen breve.
-        - lugar (str): Lugar relacionado con el hecho.
-        - fecha_evento (date): Fecha del hecho o situación.
-        - resultado_deseado (str): Qué espera el afiliado que se haga al respecto.
+            OBJETIVO Y ALCANCE:
+            - Esta herramienta registra comunicaciones internas para su análisis
+            por las áreas correspondientes de la obra social.
+            - La información se utiliza exclusivamente para la gestión del caso.
 
-        Retorna:
-        - El ID (int) de la comunicación creada en la base de datos.
+            INSTRUCCIONES OBLIGATORIAS PARA EL ASISTENTE (LLM):
 
-        Ejemplo de uso esperado:
-        1️⃣ El afiliado explica su situación.
-        2️⃣ El modelo formula preguntas para obtener todos los campos.
-        3️⃣ El modelo redacta un texto formal.
-        4️⃣ El modelo llama a crear_comunicacion() con todos los valores completos.
-        '''
+            1. AVISO PREVIO AL AFILIADO
+            - Antes de recopilar datos, informar:
+                "Esta comunicación será registrada para su análisis interno.
+                Los datos deben ser verídicos y se utilizarán únicamente para evaluar la situación."
+
+            2. RECOLECCIÓN DE DATOS (OBLIGATORIA)
+            - Solicitar de forma clara y respetuosa:
+                1. Tipo de comunicación (AGRADECIMIENTO / SUGERENCIA / RECLAMO)
+                2. Asunto o tema principal
+                3. Descripción objetiva de la situación (tono formal, sin lenguaje ofensivo)
+                4. Lugar relacionado con el hecho
+                5. Fecha del evento (YYYY-MM-DD)
+                6. Resultado o acción que espera el afiliado
+
+            3. REDACCIÓN FINAL
+            - Redactar un texto formal, claro y objetivo.
+            - Diferenciar hechos de la solicitud.
+            - No agregar opiniones propias del asistente.
+            - No prometer resultados ni sanciones.
+
+            4. REGISTRO
+            - Llamar a esta herramienta SOLO cuando todos los campos estén completos.
+            - No modificar el sentido de lo expresado por el afiliado.
+
+            5. CIERRE
+            - Informar:
+                "Tu comunicación fue registrada correctamente.
+                La obra social analizará la situación y continuará el tratamiento por los canales correspondientes."
+
+            PARÁMETROS:
+            - tipo (str): "AGRADECIMIENTO", "SUGERENCIA" o "RECLAMO".
+            - descripcion (str): Texto final redactado.
+            - afiliado_id (int): Identificador del afiliado.
+            - asunto (str): Resumen breve.
+            - lugar (str): Lugar del hecho.
+            - fecha_evento (date): Fecha del evento.
+            - resultado_deseado (str): Acción solicitada.
+
+            RETORNA:
+            - int: ID interno de la comunicación registrada.
+            '''
         try:
             db = ctx.request_context.lifespan_context.db
             nota_id = await utils_comunicaciones.insert_comunicacion(

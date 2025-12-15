@@ -63,15 +63,39 @@ async def buscar_practica_por_nombre(connection, nombre: str) -> Optional[List[P
     except Exception as e:
         raise Exception(f"Error en utils.buscar_practica_por_nombre: {e}")
     
-async def get_practicas_cubiertas(connection, plan_id: int) -> Optional[list[Practica]]:
+'''
+Obtiene las prácticas cubiertas para un afiliado.
+Primero busca al afiliado por su ID, obtiene su plan_id y luego retorna sus prácticas cubiertas.
+Parámetros:
+  connection (asyncpg.Connection) — Conexión a la base de datos.
+  afiliado_id (int) — ID del afiliado.
+Retorna:
+  Optional[list[Practica]] — Lista de prácticas cubiertas por el plan del afiliado,
+                             None si el afiliado no existe o no tiene prácticas cubiertas.
+'''
+async def get_practicas_cubiertas(connection, afiliado_id: int) -> Optional[list[Practica]]:
     try:
-        query = """
+        # Primero buscar al afiliado para obtener su plan_id
+        query_afiliado = """
+            SELECT plan_id
+            FROM public.afiliado
+            WHERE afiliado_id = $1
+        """
+        afiliado = await connection.fetchrow(query_afiliado, afiliado_id)
+        
+        if not afiliado:
+            return None
+        
+        plan_id = afiliado['plan_id']
+        
+        # Luego buscar las prácticas cubiertas del plan
+        query_practicas = """
             SELECT p.practica_id, p.codigo, p.nombre, p.requiere_autorizacion
             FROM public.practica p
             JOIN public.cobertura_practica pp ON p.practica_id = pp.practica_id
             WHERE pp.plan_id = $1
         """
-        results = await connection.fetch(query, plan_id)
+        results = await connection.fetch(query_practicas, plan_id)
         
         if results:
             return [Practica(**dict(row)) for row in results]

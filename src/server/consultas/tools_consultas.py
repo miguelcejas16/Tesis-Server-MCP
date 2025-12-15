@@ -33,34 +33,56 @@ def register_consulta_tools(mcp: FastMCP):
         practica_id: int
     ) -> str:
         '''
-        Consulta si una práctica está cubierta para un afiliado.
+        Consulta si una práctica está cubierta para un afiliado autenticado.
+
+        OBJETIVO DE CUMPLIMIENTO Y SEGURIDAD (Ley 25.326):
+        - La consulta de cobertura puede implicar información sensible de salud.
+        - El asistente debe garantizar que la respuesta se brinda únicamente al afiliado autenticado.
+        - Se debe minimizar la información y evitar recolectar datos clínicos.
 
         Qué hace:
         - Verifica si la práctica está incluida en el plan del afiliado.
-        - Informa el porcentaje de cobertura y copago.
-        - Indica si requiere autorización previa.
+        - Informa si está cubierta.
+        - (Opcional) Informa copago y/o porcentaje si aplica.
+        - Indica si requiere autorización previa y/o derivación.
 
         Cuándo usarla:
-        - Cuando el afiliado pregunta "¿Está cubierta esta práctica?"
-        - Antes de realizar un tope o consumo.
-        - Para verificar requisitos previos.
+        - SOLO cuando el usuario ya fue identificado con el flujo de autenticación.
+        - Cuando el afiliado pregunta si una práctica está cubierta por su plan.
+        - Después de haber identificado la práctica (practica_id) a partir de una búsqueda en el catálogo.
 
-        Cómo comunicarlo al usuario:
+        Precondiciones obligatorias para el asistente:
+        - ✅ El afiliado debe estar autenticado (no permitir consultas anónimas).
+        - ✅ El asistente debe tener un practica_id válido (no adivinar ni inferir).
+        - ❌ No solicitar ni registrar diagnóstico, motivo de consulta, síntomas o información médica.
+
+        Cómo comunicarlo al usuario (mensajes recomendados):
         Si está cubierta:
-        • "Sí, esa práctica está cubierta por tu plan."
-        • "Tenés un copago de $X" (si aplica).
-        • "Requiere autorización previa" (si aplica).
+        - "Sí, la práctica está cubierta por tu plan."
+        - "Requiere autorización previa." (si aplica)
+        - "Tiene copago de $X." (si aplica)
+        - "Requiere derivación/orden." (si aplica)
 
         Si NO está cubierta:
-        • "Esa práctica no está incluida en tu plan."
-        • "Podés consultarla como reintegro."
+        - "La práctica no está incluida en tu plan."
+        - "Si corresponde, podés gestionarlo como reintegro o consultar alternativas por los canales oficiales."
+
+        Manejo de errores (mensaje genérico, sin filtrar información):
+        - Si falla la consulta por cualquier motivo:
+        "No pude consultar la cobertura en este momento. Intentá nuevamente más tarde."
+
+        Información prohibida:
+        - No mostrar afiliado_id ni practica_id al usuario.
+        - No revelar información del plan que no sea necesaria para responder la consulta.
+        - No mencionar datos de terceros.
 
         Parámetros:
-        - afiliado_id (int): ID del afiliado.
-        - practica_id (int): ID de la práctica a consultar.
+        - afiliado_id (int): Identificador interno del afiliado autenticado.
+        - practica_id (int): Identificador interno de la práctica.
 
         Retorna:
-        - str: JSON con covered (bool), copago, requiere_autorizacion, requiere_derivacion.
+        - str (JSON): { covered: bool, copago: number|null, requiere_autorizacion: bool, requiere_derivacion: bool }
+        El asistente debe traducirlo a una respuesta breve y clara.
         '''
         try:
             import json
@@ -90,33 +112,58 @@ def register_consulta_tools(mcp: FastMCP):
         periodo: str
     ) -> str:
         '''
-        Consulta el tope disponible de una práctica para el afiliado.
+        Consulta el tope disponible de una práctica para un afiliado autenticado.
+
+        OBJETIVO DE CUMPLIMIENTO Y SEGURIDAD:
+        - El cálculo de topes utiliza consumos previos del afiliado, lo que constituye
+        información personal vinculada a prestaciones de salud.
+        - La información debe brindarse únicamente al afiliado autenticado.
+        - Se debe minimizar la información expuesta y evitar mostrar historiales detallados.
 
         Qué hace:
-        - Calcula cuántas unidades puede usar el afiliado en el periodo.
-        - Muestra cuántas ya consumió y cuántas quedan disponibles.
+        - Calcula el límite aplicable a la práctica para el periodo indicado.
+        - Determina cuántas unidades ya fueron consumidas.
+        - Calcula cuántas unidades quedan disponibles para el afiliado.
 
         Cuándo usarla:
-        - Cuando el afiliado pregunta "¿Cuántas sesiones me quedan?"
-        - Para verificar disponibilidad antes de solicitar una práctica.
+        - SOLO cuando el afiliado ya fue identificado mediante el flujo de autenticación.
+        - Cuando el afiliado consulta cuántas sesiones o usos le quedan disponibles.
+        - Luego de identificar correctamente la práctica a consultar (practica_id).
 
-        Cómo comunicarlo al usuario:
-        Si hay tope:
-        • "Tenés un límite de X unidades por [mes/año]."
-        • "Ya usaste Y, te quedan Z disponibles."
+        Precondiciones obligatorias para el asistente:
+        - ✅ El afiliado debe estar autenticado.
+        - ✅ El practica_id debe provenir de una búsqueda en el catálogo de prácticas.
+        - ❌ No solicitar ni inferir diagnóstico, motivo médico o información clínica.
+        - ❌ No consultar topes de terceros ni usar datos de otros afiliados.
 
-        Si NO hay tope:
-        • "Esta práctica no tiene límite de uso en tu plan."
+        Cómo comunicarlo al usuario (mensajes recomendados):
+        Si la práctica tiene tope:
+        - "Esta práctica tiene un límite de X unidades por período."
+        - "Actualmente tenés Z unidades disponibles."
+
+        Si la práctica no tiene tope:
+        - "Esta práctica no tiene un límite de uso en tu plan."
+
+        Manejo de errores (mensaje genérico):
+        - Ante cualquier error:
+        "No pude consultar el tope disponible en este momento. Intentá nuevamente más tarde."
+
+        Información prohibida:
+        - No mostrar fechas exactas de consumos.
+        - No detallar cada prestación utilizada.
+        - No mostrar prestadores ni lugares de atención.
+        - No exponer periodo_desde ni periodo_hasta al usuario.
+        - No mostrar afiliado_id ni practica_id.
 
         Parámetros:
-        - afiliado_id (int): ID del afiliado.
-        - practica_id (int): ID de la práctica.
-        - fecha_ref (date): Fecha de referencia (YYYY-MM-DD).
-        - periodo (str): siempre 'mensual'.
+        - afiliado_id (int): Identificador interno del afiliado autenticado.
+        - practica_id (int): Identificador interno de la práctica.
+        - fecha_ref (date): Fecha de referencia para el cálculo (uso interno).
+        - periodo (str): Periodo de cálculo ('mensual' o 'anual').
 
         Retorna:
-        - str: JSON con unidades_max, consumido, disponible, periodo_desde, periodo_hasta.
-        - Si no hay tope definido: retorna "null".
+        - str (JSON interno):
+        El asistente DEBE filtrar la respuesta y comunicar solo la disponibilidad.
         '''
         try:
             import json
@@ -151,35 +198,49 @@ def register_consulta_tools(mcp: FastMCP):
     async def consultar_historial_consumos(
         ctx: Context[ServerSession, "AppContext"],
         afiliado_id: int,
-        limit: int = 50,
+        limit: int = 10,
         offset: int = 0
     ) -> str:
         '''
-        Lista el historial de consumos del afiliado.
+            Devuelve un historial resumido de consumos del afiliado autenticado.
 
-        Qué hace:
-        - Muestra todas las prácticas que el afiliado usó.
-        - Incluye fecha, prestador, costo, cobertura y copago.
-        - Ordenado de más reciente a más antiguo.
+            OBJETIVO DE CUMPLIMIENTO:
+            - El historial de consumos contiene información sensible de salud.
+            - El asistente debe mostrar un resumen útil pero minimizado.
 
-        Cuándo usarla:
-        - Cuando el afiliado pregunta "¿Qué prácticas usé?"
-        - Para revisar consumos previos.
-        - Para verificar detalles de facturas.
+            CUÁNDO USARLA:
+            - SOLO si el afiliado ya fue identificado.
+            - Cuando el afiliado solicita ver su historial de consumos.
 
-        Cómo comunicarlo al usuario:
-        • "Acá está tu historial de consumos."
-        • "La práctica más reciente fue [nombre] el [fecha]."
-        • "En total tenés X consumos registrados."
+            SALIDA PERMITIDA (OBLIGATORIA):
+            - Listado acotado (recomendado: últimos 10 consumos).
+            - Para cada consumo mostrar SOLO:
+            • nombre de la práctica
+            • período en formato MES/AÑO (ej. "Dic 2025")
 
-        Parámetros:
-        - afiliado_id (int): ID del afiliado.
-        - limit (int): Cantidad de registros a mostrar (por defecto 50).
-        - offset (int): Desplazamiento para paginación (por defecto 0).
+            INFORMACIÓN PROHIBIDA:
+            - Día exacto de la fecha.
+            - Prestador.
+            - Costos, copagos o porcentajes.
+            - Observaciones o datos clínicos.
 
-        Retorna:
-        - str: JSON con lista de consumos (fecha, practica_nombre, prestador, costo, cobertura, copago).
-        '''
+            MENSAJE SUGERIDO:
+            - "Este es un resumen de tus últimos consumos:"
+            - "Total mostrado: X consumos."
+
+            MANEJO DE ERRORES:
+            - Respuesta genérica:
+            "No pude consultar tu historial en este momento. Intentá nuevamente más tarde."
+
+            PARÁMETROS:
+            - afiliado_id (int): afiliado autenticado.
+            - limit (int): el asistente debe preferir 10.
+            - offset (int): paginación.
+
+            RETORNO:
+            - JSON interno. Las fechas deben venir ya truncadas a MES/AÑO
+            o el asistente debe ignorar el día.
+            '''
         try:
             import json
             from decimal import Decimal
@@ -198,7 +259,7 @@ def register_consulta_tools(mcp: FastMCP):
                 if isinstance(obj, Decimal):
                     return float(obj)
                 if isinstance(obj, (_date, _datetime)):
-                    return obj.isoformat()
+                    return obj.strftime("%Y-%m")
                 if isinstance(obj, dict):
                     return {k: _serial(v) for k, v in obj.items()}
                 if isinstance(obj, list):

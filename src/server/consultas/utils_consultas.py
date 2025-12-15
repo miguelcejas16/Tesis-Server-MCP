@@ -218,12 +218,7 @@ async def historial_consumos(
             """
             SELECT
               c.fecha,
-              p.codigo   AS practica_codigo,
-              p.nombre   AS practica_nombre,
-              c.prestador,
-              c.costo,
-              c.cobertura,
-              c.copago
+              p.nombre   AS practica_nombre
             FROM public.consumo c
             JOIN public.practica p ON p.practica_id = c.practica_id
             WHERE c.afiliado_id = $1

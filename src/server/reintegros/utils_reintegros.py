@@ -174,41 +174,6 @@ async def add_docs_reintegro(connection: asyncpg.Connection, reintegro_id: int) 
         raise Exception(f"Error en utils.add_docs_reintegro: {e}")
     
 '''
- * Lista reintegros para un afiliado dentro de un rango de fechas (inclusive).
- *
- * Parámetros:
- *   connection (asyncpg.Connection) — Conexión a la base de datos.
- *   afiliado_id (int) — ID del afiliado.
- *   fecha_desde (date) — Fecha inicial (inclusive).
- *   fecha_hasta (date) — Fecha final (inclusive).
- *
- * Retorna:
- *   List[dict] — Lista de reintegros (cada item es un dict con columnas seleccionadas).
- *
- * Notas:
- *   - Se usa fecha_presentacion::date para comparar solo la parte fecha.
- *   - La tabla `reintegro` no tiene `updated_at`; se seleccionan columnas existentes.
-'''
-async def list_reintegros_por_afiliado_y_rango(
-    connection: asyncpg.Connection,
-    afiliado_id: int,
-    fecha_desde: date,
-    fecha_hasta: date,
-) -> List[dict]:
-    try:
-        query = """
-            SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado, fecha_presentacion, observaciones
-            FROM public.reintegro
-            WHERE afiliado_id = $1
-              AND fecha_presentacion::date BETWEEN $2 AND $3
-            ORDER BY fecha_presentacion DESC
-        """
-        rows = await connection.fetch(query, afiliado_id, fecha_desde, fecha_hasta)
-        return [dict(r) for r in rows]
-    except Exception as e:
-        raise Exception(f"Error en utils.list_reintegros_por_afiliado_y_rango: {e}")
-
-'''
 Obtiene un reintegro por su ID y afiliado_id junto con sus ítems asociados.
 Incluye información de práctica (nombre) o medicamento (principio_activo, marca)
 según corresponda al tipo del ítem.
@@ -218,7 +183,7 @@ Parámetros:
   afiliado_id (int) — ID del afiliado dueño del reintegro.
 Retorna:
   Optional[dict] — Diccionario con los datos del reintegro y una clave 'items' con la lista de ítems;
-                   None si no se encuentra el reintegro o no pertenece al afiliado.
+                   None si no se encuentra el reintegro, no pertenece al afiliado o está CANCELADO.
 '''
 async def get_reintegro_por_id(
     connection: asyncpg.Connection,
@@ -236,6 +201,10 @@ async def get_reintegro_por_id(
         row = await connection.fetchrow(query_reintegro, reintegro_id, afiliado_id)
         if not row:
             return None # Reintegro no encontrado o no pertenece al afiliado
+
+        # Validar que el reintegro no esté CANCELADO
+        if row['estado'] == 'CANCELADO':
+            return None
 
         # Convertir fila a dict y hacer valores JSON-safe (Decimal -> float, datetime/date -> ISO)
         def _json_safe_value(v):
@@ -283,3 +252,75 @@ async def get_reintegro_por_id(
         return reintegro
     except Exception as e:
         raise Exception(f"Error en utils.get_reintegro_por_id: {e}")
+
+'''
+Lista reintegros para un afiliado dentro de un rango de fechas (inclusive).
+Excluye reintegros con estado CANCELADO.
+
+Parámetros:
+  connection (asyncpg.Connection) — Conexión a la base de datos.
+  afiliado_id (int) — ID del afiliado.
+  fecha_desde (date) — Fecha inicial (inclusive).
+  fecha_hasta (date) — Fecha final (inclusive).
+
+Retorna:
+  List[dict] — Lista de reintegros (cada item es un dict con columnas seleccionadas).
+              No incluye reintegros CANCELADOS.
+
+Notas:
+  - Se usa fecha_presentacion::date para comparar solo la parte fecha.
+  - La tabla `reintegro` no tiene `updated_at`; se seleccionan columnas existentes.
+'''
+async def list_reintegros_por_afiliado_y_rango(
+    connection: asyncpg.Connection,
+    afiliado_id: int,
+    fecha_desde: date,
+    fecha_hasta: date,
+) -> List[dict]:
+    try:
+        query = """
+            SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado, fecha_presentacion, observaciones
+            FROM public.reintegro
+            WHERE afiliado_id = $1
+              AND fecha_presentacion::date BETWEEN $2 AND $3
+              AND estado != 'CANCELADO'
+            ORDER BY fecha_presentacion DESC
+        """
+        rows = await connection.fetch(query, afiliado_id, fecha_desde, fecha_hasta)
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise Exception(f"Error en utils.list_reintegros_por_afiliado_y_rango: {e}")
+
+'''
+Cancela un reintegro poniendo su estado en 'CANCELADO'.
+Valida que el reintegro pertenezca al afiliado dado.
+
+Parámetros:
+  connection (asyncpg.Connection) — Conexión a la base de datos.
+  reintegro_id (int) — ID del reintegro a cancelar.
+  afiliado_id (int) — ID del afiliado dueño del reintegro.
+
+Retorna:
+  bool — True si se actualizó al menos una fila; False si no existe o no pertenece al afiliado.
+'''
+async def cancelar_reintegro(
+    connection: asyncpg.Connection,
+    reintegro_id: int,
+    afiliado_id: int
+) -> bool:
+    try:
+        query = """
+            UPDATE public.reintegro
+            SET estado = 'CANCELADO'
+            WHERE reintegro_id = $1 AND afiliado_id = $2
+        """
+        result = await connection.execute(query, reintegro_id, afiliado_id)
+        if result and result.startswith("UPDATE"):
+            try:
+                updated = int(result.split()[1])
+                return updated > 0
+            except (IndexError, ValueError):
+                return False
+        return False
+    except Exception as e:
+        raise Exception(f"Error en utils.cancelar_reintegro: {e}")
