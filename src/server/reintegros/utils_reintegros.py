@@ -193,8 +193,7 @@ async def get_reintegro_por_id(
     try:
         # Obtener el reintegro principal validando reintegro_id Y afiliado_id
         query_reintegro = """
-            SELECT reintegro_id, afiliado_id, estado, total_presentado, total_aprobado,
-                   fecha_presentacion, observaciones, cbu, adjuntos_confirmados
+            SELECT reintegro_id, afiliado_id, estado,fecha_presentacion
             FROM public.reintegro
             WHERE reintegro_id = $1 AND afiliado_id = $2
         """
@@ -215,39 +214,6 @@ async def get_reintegro_por_id(
             return v
 
         reintegro = {k: _json_safe_value(v) for k, v in dict(row).items()}
-
-        # Obtener los items asociados al reintegro, incluyendo datos de practica/medicamento
-        query_items = """
-            SELECT ri.item_id,
-                   ri.reintegro_id,
-                   ri.tipo,
-                   ri.practica_id,
-                   p.nombre AS practica_nombre,
-                   ri.medicamento_id,
-                   m.principio_activo AS medicamento_principio_activo,
-                   m.marca AS medicamento_marca,
-                   ri.fecha_prestacion,
-                   ri.monto_presentado,
-                   ri.monto_aprobado,
-                   ri.cobertura_aplicada,
-                   ri.copago,
-                   ri.prestador_txt,
-                   ri.comprobante_txt
-            FROM public.reintegro_item ri
-            LEFT JOIN public.practica p ON ri.practica_id = p.practica_id
-            LEFT JOIN public.medicamento m ON ri.medicamento_id = m.medicamento_id
-            WHERE ri.reintegro_id = $1
-            ORDER BY ri.fecha_prestacion, ri.item_id
-        """
-        items_rows = await connection.fetch(query_items, reintegro_id)
-
-        items = []
-        for r in items_rows:
-            item = {k: _json_safe_value(v) for k, v in dict(r).items()}
-            items.append(item)
-
-        # Agregar la lista de items al dict del reintegro
-        reintegro['items'] = items
 
         return reintegro
     except Exception as e:

@@ -64,137 +64,30 @@ def register_reintegro_tools(mcp: FastMCP):
         '''
 
         return {
-            "documento": {
-                "tipo": "Reglamento",
-                "nombre": "Reglamento de Reintegros Médicos MCP",
-                "formato_requerido": "Toda la documentación debe presentarse en formato PDF"
-            },
-
-            "marco_legal_obligatorio": {
-                "jerarquia": "Norma rectora prioritaria",
-                "descripcion_general": (
-                    "El presente procedimiento se encuentra alcanzado por la normativa "
-                    "de protección de datos personales y datos sensibles de salud, "
-                    "resultando de cumplimiento obligatorio en todas las etapas del reintegro."
-                ),
-                "normativa_aplicable": [
-                    {
-                        "norma": "Ley 25.326 de Protección de los Datos Personales",
-                        "tipo": "Ley nacional",
-                        "caracter": "Cumplimiento obligatorio",
-                        "ambito": "Tratamiento de datos personales y datos sensibles de salud",
-                        "impacto_directo_en_el_procedimiento": [
-                            "Tratamiento confidencial de los datos de salud",
-                            "Limitación del acceso a datos a personal autorizado",
-                            "Uso exclusivo de los datos para la gestión del reintegro",
-                            "Prohibición de usos secundarios no autorizados",
-                            "Garantía de los derechos del titular de los datos"
-                        ]
-                    }
+            "reglamento": "Reintegros Médicos MCP - Documentación en PDF",
+            "marco_legal": "Ley 25.326 - Protección de Datos Personales y de Salud (cumplimiento obligatorio en todas las etapas)",
+            "requisitos": {
+                "practicas_ambulatorias": [
+                    "Orden médica con diagnóstico (profesional matriculado)",
+                    "Autorización previa si la práctica lo requiere",
+                    "Informe o resultado de la prestación",
+                    "Factura original a nombre del afiliado titular firmada",
+                    "Fotocopia del DNI del afiliado"
                 ],
-                "obligacion_para_el_asistente": (
-                    "Toda explicación, solicitud de datos o descripción del procedimiento "
-                    "debe contextualizarse en el marco de la Ley 25.326, especialmente "
-                    "cuando se trate información de salud."
-                )
-            },
-
-            "procedimiento_operativo_de_reintegros": {
-                "practicas_ambulatorias": {
-                    "descripcion": "Reintegros vinculados a prácticas médicas realizadas en forma ambulatoria",
-                    "requisitos": [
-                        "Orden médica con diagnóstico emitida por profesional matriculado",
-                        "Autorización previa cuando la práctica lo requiera según convenio",
-                        "Informe o resultado de la prestación cuando corresponda",
-                        "Factura original a nombre del afiliado titular firmada por el mismo",
-                        "Fotocopia del DNI del afiliado"
-                    ]
-                },
-
-                "medicamentos": {
-                    "descripcion": "Reintegros vinculados a la adquisición de medicamentos",
-                    "requisitos": [
-                        "Receta médica con los datos del profesional prescriptor",
-                        "Factura o ticket fiscal original",
-                        "Troqueles o rótulos de los medicamentos adquiridos",
-                        "Fotocopia del DNI del afiliado"
-                    ]
-                }
-            },
-
-            "plazo_de_presentacion": {
-                "plazo": "60 días corridos",
-                "computo": "Desde la fecha de emisión de la factura o de la receta médica",
-                "consecuencia_del_incumplimiento": "La solicitud puede ser rechazada por presentación fuera de término"
-            },
-
-            "forma_de_pago": {
-                "modalidad": "Transferencia bancaria",
-                "destinatario": "Titular afiliado",
-                "requisito": "CBU informado y validado del titular"
-            },
-
-            "tratamiento_de_datos_personales": {
-                "categorias_de_datos": {
-                    "datos_identificatorios": [
-                        "Nombre y apellido",
-                        "Tipo y número de documento",
-                        "Número de afiliado",
-                        "Datos de contacto"
-                    ],
-                    "datos_administrativos_y_economicos": [
-                        "Información del plan de salud",
-                        "Datos bancarios (CBU) del titular"
-                    ],
-                    "datos_de_salud": [
-                        "Diagnóstico consignado en la orden médica o receta",
-                        "Tipo de prestación médica",
-                        "Fecha y lugar de la atención",
-                        "Informes o resultados vinculados a la práctica o medicación"
-                    ]
-                },
-                "caracter_de_los_datos": {
-                    "datos_de_salud": "Datos sensibles que requieren protección reforzada"
-                }
-            },
-
-            "finalidad_del_tratamiento": {
-                "objetivos": [
-                    "Recepcionar la solicitud de reintegro",
-                    "Analizar y gestionar el trámite administrativo",
-                    "Verificar el cumplimiento del reglamento",
-                    "Efectuar el pago del reintegro correspondiente",
-                    "Cumplir con obligaciones legales y regulatorias del sistema de salud"
-                ],
-                "limitacion_de_uso": "Los datos no podrán ser utilizados para finalidades distintas a las aquí establecidas"
-            },
-
-            "derechos_del_titular_de_los_datos": {
-                "derechos_reconocidos": [
-                    "Acceso a los datos personales",
-                    "Rectificación de datos incorrectos",
-                    "Actualización de la información",
-                    "Supresión de los datos cuando corresponda",
-                    "Información sobre el tratamiento de los datos"
-                ],
-                "canales_de_ejercicio": {
-                    "correo_electronico": "obrasocialMCP@mcp.com",
-                    "telefono": "3834-112233",
-                    "atencion_presencial": {
-                        "direccion": "Nuñez del Prado 666",
-                        "horario": "Lunes a viernes de 7:00 a 13:00"
-                    }
-                }
-            },
-
-            "confidencialidad_y_acceso": {
-                "acceso_a_los_datos": "Limitado exclusivamente a personal autorizado",
-                "terceros": "Proveedores involucrados bajo deber de confidencialidad",
-                "medidas_generales": [
-                    "Confidencialidad reforzada",
-                    "Acceso restringido",
-                    "Uso conforme a finalidad declarada"
+                "medicamentos": [
+                    "Receta médica con datos del profesional prescriptor",
+                    "Factura o ticket fiscal original",
+                    "Troqueles o rótulos de los medicamentos",
+                    "Fotocopia del DNI del afiliado"
                 ]
+            },
+            "plazo": "60 días corridos desde la fecha de factura o receta. Fuera de término: solicitud rechazada.",
+            "pago": "Transferencia bancaria al CBU registrado del titular",
+            "derechos_datos": ["Acceso", "Rectificación", "Actualización", "Supresión", "Información sobre tratamiento"],
+            "contacto": {
+                "email": "obrasocialMCP@mcp.com",
+                "telefono": "3834-112233",
+                "presencial": "Nuñez del Prado 666 - L a V 7:00 a 13:00"
             }
         }
 
@@ -298,6 +191,7 @@ def register_reintegro_tools(mcp: FastMCP):
 
         OBLIGATORIO - Avisar al usuario que tenga cuidado con los items que carga porque no hay vuelta atras.
         LUEGO DE USAR RECUERDA QUE ESTE TRANQUILO QUE PUEDE CANCELAR EL REINTEGRO SI SE EQUIVOCA.
+        SIEMPRE LUEGO DE EJECUTAR ESTA HERRAMIENTA, MUESTRALE EL ITEM QUE CARGO.
 
         Flujo para el LLM (estricto):
         1) Asegurate de tener `reintegro_id` (devuelto por `iniciar_reintegro`).
@@ -393,67 +287,6 @@ def register_reintegro_tools(mcp: FastMCP):
             
         except Exception as e:
             raise Exception(f"Error en tool.adjuntar_documentos_a_reintegro: {e}")   
-
-    @mcp.tool(name="listar_reintegros_afiliado")
-    async def listar_reintegros_afiliado(
-        ctx: Context[ServerSession, "AppContext"],
-        afiliado_id: int,
-        fecha_desde: date,
-        fecha_hasta: date
-    ) -> str:
-        '''
-        Lista reintegros para un afiliado dentro de un rango de fechas (inclusive).
-
-        Instrucciones para el LLM que use esta herramienta:
-        - Pedir siempre al usuario el RANGO de fechas en formato YYYY-MM-DD:
-          "Por favor indicá fecha desde (YYYY-MM-DD) y fecha hasta (YYYY-MM-DD)."
-        - Si el usuario NO puede dar un rango pero aporta UNA fecha estimada,
-          pedir: "Si solo tenés una fecha estimada, indicámela (YYYY-MM-DD) y yo usaré ese día ±5 días."
-          En ese caso construir el rango automáticamente restando 5 días a la fecha estimada para `fecha_desde`
-          y sumando 5 días para `fecha_hasta`.
-        - Validar el formato de la(s) fecha(s) antes de llamar a la tool.
-        - Confirmar con el usuario el rango final que se usará:
-          "Voy a buscar reintegros desde {fecha_desde} hasta {fecha_hasta}. ¿Continuo?"
-        - Solo llamar esta herramienta cuando el usuario confirme el rango.
-
-        Parámetros:
-        - afiliado_id (int): ID del afiliado.
-        - fecha_desde (date): Fecha inicial (inclusive).
-        - fecha_hasta (date): Fecha final (inclusive).
-
-        Retorna:
-        - str: JSON con la lista de reintegros y sus detalles.
-
-        Notas:
-        - El formato de fecha es YYYY-MM-DD.
-        - Si no hay reintegros, retorna una lista vacía.
-        '''
-        try:
-            import json
-            from decimal import Decimal
-            from datetime import date, datetime
-
-            # Llamada directa a la utilidad; asumimos que las fechas vienen ya en el formato esperado.
-            db = ctx.request_context.lifespan_context.db
-            reintegros = await utils_reintegros.list_reintegros_por_afiliado_y_rango(
-                db.conn, afiliado_id, fecha_desde, fecha_hasta
-            )
-
-            # Conversión simple y recursiva para que json.dumps pueda serializar Decimals y fechas.
-            def _serial(obj):
-                if isinstance(obj, Decimal):
-                    return float(obj)
-                if isinstance(obj, (date, datetime)):
-                    return obj.isoformat()
-                if isinstance(obj, dict):
-                    return {k: _serial(v) for k, v in obj.items()}
-                if isinstance(obj, list):
-                    return [_serial(i) for i in obj]
-                return obj
-
-            return json.dumps(_serial(reintegros))
-        except Exception as e:
-            raise Exception(f"Error al listar reintegros del afiliado: {str(e)}")
         
     @mcp.tool(name="obtener_reintegro_por_id")
     async def obtener_reintegro_por_id(

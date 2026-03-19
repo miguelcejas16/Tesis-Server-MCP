@@ -28,10 +28,6 @@ class Reintegro(BaseModel):
     afiliado_id: int = Field(..., description="ID del afiliado asociado al reintegro")
     estado: str = Field("pendiente", description="Estado del reintegro (pendiente, en_revision, etc.)")
     fecha_presentacion: Optional[datetime] = Field(None, description="Fecha de presentación del reintegro")
-    total_presentado: float = Field(0.0, description="Monto total presentado por el afiliado")
-    total_aprobado: float = Field(0.0, description="Monto total aprobado por la obra social")
-    observaciones: Optional[str] = Field(None, description="Observaciones adicionales sobre el reintegro")
-    updated_at: Optional[datetime] = Field(None, description="Última fecha de actualización")
 
     class Config:
         from_attributes = True  # Permite crear instancias desde dict/row

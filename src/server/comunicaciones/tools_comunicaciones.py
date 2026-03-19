@@ -29,70 +29,44 @@ def register_comunicacion_tools(mcp: FastMCP):
     @mcp.tool(name="buscar_comunicaciones")
     async def buscar_comunicaciones(
         ctx: Context[ServerSession, "AppContext"],
-        numero_afiliado: str,
-        fecha_desde: date,
-        fecha_hasta: date,
-        nota_id: Optional[int] = None
+        afiliado_id: int,
+        nota_id: int
     ) -> str:
         '''
-        Busca comunicaciones registradas por número de afiliado dentro de un rango de fechas obligatorio.
+        Busca una comunicación específica por su ID y número de afiliado.
 
         ── Qué hace
-        Consulta la tabla 'comunicacion' filtrando por:
-        - numero_afiliado (obligatorio)
-        - Rango de fechas [fecha_desde, fecha_hasta] (ambas obligatorias)
-        - nota_id (opcional, para buscar una comunicación específica)
+        Recupera una comunicación de la tabla 'comunicacion' filtrando por:
+        - numero_afiliado (obligatorio): número de 8 caracteres del afiliado
+        - nota_id (obligatorio): ID único de la comunicación
 
         ── Parámetros
         - numero_afiliado (str): Número de afiliado de 8 caracteres (ej: "00001234")
-        - fecha_desde (date): Fecha de inicio del rango (formato YYYY-MM-DD)
-        - fecha_hasta (date): Fecha de fin del rango (formato YYYY-MM-DD)
-        - nota_id (int, opcional): ID específico de la comunicación a buscar
+        - nota_id (int): ID de la comunicación a buscar
 
         ── Qué devuelve
-        String JSON con lista de comunicaciones encontradas. Cada comunicación incluye:
+        String JSON con los datos de la comunicación encontrada:
         - nota_id: ID único de la comunicación
         - tipo: AGRADECIMIENTO, SUGERENCIA o RECLAMO
         - asunto: Tema principal
-        - descripcion: Texto completo de la comunicación
-        - lugar: Lugar del evento
-        - fecha_evento: Fecha del hecho reportado
-        - resultado_deseado: Solicitud del afiliado
         - afiliado_id: ID interno del afiliado
-        - numero_afiliado: Número de afiliado
-        - creado_en: Fecha/hora de registro en el sistema
+
+        Si no se encuentra, devuelve null.
 
         ── Instrucciones para el LLM
-        1) SIEMPRE pedir una fecha aproximada al usuario:
-           "¿Recordás más o menos cuándo hiciste la comunicación?"
-           Ejemplos válidos: "alrededor del 10/05/2025", "a fines de mayo", "la semana pasada"
+        1) Solicitar al usuario:
+           - Número de afiliado (8 caracteres)
+           - ID de la comunicación (nota_id)
 
-        2) Con la fecha aproximada, construir un rango de ±5 días:
-           - fecha_desde = fecha_aproximada - 5 días
-           - fecha_hasta = fecha_aproximada + 5 días
-
-        3) Si el usuario da un rango explícito (ej: "entre el 1 y 20 de mayo"),
-           usar ese rango sin modificar.
-
-        4) Preguntar si conoce el ID de la nota:
-           "¿Tenés el número de la comunicación?"
-           - Si lo tiene: incluir nota_id
-           - Si no lo tiene: omitir nota_id (buscar todas en el rango)
-
-        5) Validar ANTES de llamar:
-           - numero_afiliado: no vacío, 8 caracteres
-           - fecha_desde <= fecha_hasta
-           - Fechas en formato ISO (YYYY-MM-DD)
-
-        6) Si el usuario no recuerda fecha, pedir referencia temporal:
-           "semana pasada" → usar miércoles de esa semana
-           "principios de marzo" → usar 05/03/2025
-           Luego aplicar ±5 días
+        2) Validar ANTES de llamar:
+           - numero_afiliado: no vacío, exactamente 8 caracteres numéricos
+           - nota_id: número entero positivo
 
         ── Ejemplo de uso
-        Usuario: "Quiero ver mi reclamo del 15 de mayo"
-        LLM calcula: fecha_desde=2025-05-10, fecha_hasta=2025-05-20
-        Llamada: buscar_comunicaciones(ctx, "00001234", date(2025,5,10), date(2025,5,20))
+        Usuario: "Quiero ver mi comunicación número 42"
+        LLM solicita: número de afiliado
+        Usuario: "00001234"
+        Llamada: buscar_comunicaciones(ctx, "00001234", 42)
         '''
         try:
             import json
@@ -100,12 +74,14 @@ def register_comunicacion_tools(mcp: FastMCP):
             from datetime import date as _date, datetime as _datetime
 
             db = ctx.request_context.lifespan_context.db
-            rows = await utils_comunicaciones.fetch_comunicaciones_por_numero_y_rango(
-                db.conn, numero_afiliado, fecha_desde, fecha_hasta, nota_id
+            comunicacion = await utils_comunicaciones.fetch_comunicacion_by_id(
+                db.conn, afiliado_id, nota_id
             )
 
             # Serializar tipos no JSON (Decimal, date, datetime)
             def _serial(v):
+                if v is None:
+                    return None
                 if isinstance(v, Decimal):
                     return float(v)
                 if isinstance(v, (_date, _datetime)):
@@ -116,7 +92,7 @@ def register_comunicacion_tools(mcp: FastMCP):
                     return [_serial(i) for i in v]
                 return v
 
-            return json.dumps(_serial(rows), ensure_ascii=False)
+            return json.dumps(_serial(comunicacion), ensure_ascii=False)
         except Exception as e:
             raise Exception(f"Error en tool.buscar_comunicaciones: {e}")
 

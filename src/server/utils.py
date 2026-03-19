@@ -54,7 +54,7 @@ async def buscar_practica_por_nombre(connection, nombre: str) -> Optional[List[P
         query = """
             SELECT practica_id, codigo, nombre, requiere_autorizacion
             FROM public.practica 
-            WHERE nombre ILIKE $1
+            WHERE UPPER(nombre) LIKE UPPER($1)
         """
         result = await connection.fetch(query, f"%{nombre}%")
         

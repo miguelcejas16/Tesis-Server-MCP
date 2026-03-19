@@ -104,3 +104,31 @@ async def insert_comunicacion(
         )
         # row es un asyncpg.Record; puedes indexar por nombre o por posición
         return row["nota_id"]
+
+'''
+Recuperar una comunicación específica por nota_id y afiliado_id.
+
+Parametros:
+- conn: conexión asyncpg.Connection ya abierta.
+- nota_id: ID de la comunicación a buscar.
+- afiliado_id: número de afiliado (para validar que pertenece a ese afiliado).
+
+Retorna: diccionario con los datos de la comunicación o None si no existe.
+Ejemplo:
+  comunicacion = await fetch_comunicacion_by_id(conn, nota_id=5, afiliado_id=12)
+'''
+async def fetch_comunicacion_by_id(
+    conn: asyncpg.Connection,
+    afiliado_id: int,
+    nota_id: int
+) -> Optional[Dict[str, Any]]:
+    sql = """
+    SELECT nota_id, tipo, asunto, afiliado_id
+    FROM public.comunicacion
+    WHERE nota_id = $1 AND afiliado_id = $2
+    """
+    row = await conn.fetchrow(sql, nota_id, afiliado_id)
+    if row:
+        return dict(row)
+    return None
+

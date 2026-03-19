@@ -145,7 +145,7 @@ async def solicitar_codigo_afiliado(ctx: Context[ServerSession, AppContext], num
         cuerpo = f"Hola {afiliado.nombre},\n\nTu código de verificación es: {codigo}\n\nEste código expira en 5 minutos.\n\nEste código se utilizará únicamente para identificarte y habilitar tus gestiones."
         #enviar_email(afiliado.email, asunto, cuerpo)
         logger.info(f"Codigo enviado: {codigo}")
-        return f"este es tu codigo para pruebas: {codigo}"
+        return f"Se ha enviado un código de 6 dígitos al email registrado del afiliado. Este código solo se utilizará para identificarte y habilitar tus gestiones. Por favor, escribí el código aquí."
         
         # 5. Retornar mensaje con aclaración sobre el uso de datos
         #return f"Para ayudarte con los trámites que necesites, validé tu identidad con datos mínimos. Se ha enviado un código de 6 dígitos al email registrado para el afiliado {numero_afiliado}. Este código solo se utilizará para identificarte y habilitar tus gestiones. Por favor, escribí el código aquí."
